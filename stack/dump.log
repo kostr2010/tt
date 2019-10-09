@@ -1,0 +1,20 @@
+!!!ERROR <9> (hash-sum has changed unexpectedly)!!!
+Stack_t <st> [0x56027c7ed2a0] {
+  canary1          = 1feed5adb16b00b5
+  current filling  = 0
+  maximum capacity = 10
+  errno            = 9
+  hash             = 1058373364
+  canary2          = 1feed5adb16b00b5
+  buffer buf [0x56027c7ed310]:
+    [0] = 173
+    [1] = 173
+    [2] = 173
+    [3] = 173
+    [4] = 173
+    [5] = 173
+    [6] = 173
+    [7] = 173
+    [8] = 173
+    [9] = 173
+}

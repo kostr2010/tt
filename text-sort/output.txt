@@ -1,0 +1,33 @@
+sorted from beginning:
+gg
+h
+hg
+jhhhhhharfff
+
+#########
+#########
+#########
+#########
+
+sorted from the end:
+jhhhhhharfff
+gg
+hg
+h
+
+#########
+#########
+#########
+#########
+
+original:
+rfff
+gg
+hg
+h
+jhhhhhha
+#########
+#########
+#########
+#########
+
