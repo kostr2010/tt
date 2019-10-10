@@ -13,8 +13,9 @@
 
 typedef int data_t;                             // stack's data type.
 
-const long CANARY       = 0x1FEED5ADB16B00B5;   // canary value.
-data_t POISON           = (data_t)(173);        // poisonous value.
+const long CANARY = 0x1FEED5ADB16B00B5;   // canary value.
+data_t POISON     = (data_t)(173);        // poisonous value.
+const int OFF     = 10;                   // offset from max / 2, in which stack should be shrinked. 
 
 // array of errors descriptions.
 char* ErrDesc[] = {             
@@ -321,7 +322,7 @@ int StackPop(Stack_t* st) {
         return -1;
     }
 
-    if (st->cur < (st->max / 2) - 10) {
+    if (st->cur < (st->max / 2) - OFF) {
         if (StackResize(st, st->max / 2) != 0)
             return 1;
     }
