@@ -5,10 +5,10 @@
 
 //####################//
 
-#define SECURITY_FLAG 0                                                                                                                         // if set to 0, no security measures will be applied.
-#define STACK_INIT(stack, max) _StackConstruct(stack, #stack, max)                                                                              // macros for Stack_t constructor.
-#define STACK_VERIFY(stack) if (SECURITY_FLAG && _StackOK(stack) != 0) {printf("<%d>\n", _StackOK(stack));_StackDump(stack); assert(!"ok");}    // macros for stack verification.
-#define STACK_LOG(stack, name) if (SECURITY_FLAG) {_StackLog(stack, name);}                                                                     // macros for stack logging.
+#define SECURITY_FLAG 0                                                                                     // if set to 0, no security measures will be applied.
+#define STACK_INIT(stack, max) _StackConstruct(stack, #stack, max)                                          // macros for Stack_t constructor.
+#define STACK_VERIFY(stack) if (SECURITY_FLAG && _StackOK(stack) != 0) {_StackDump(stack); assert(!"ok");}  // macros for stack verification.
+#define STACK_LOG(stack, name) if (SECURITY_FLAG) {_StackLog(stack, name);}                                 // macros for stack logging.
 #define STACK_GET_HASH(stack) (SECURITY_FLAG) ? (_StackGetHash(stack)) : (0)
 
 typedef int data_t;                             // stack's data type.
@@ -92,14 +92,14 @@ int _StackConstruct(Stack_t* st, const char* name, int max);
 int StackFree(Stack_t* st);
 
 /**
- * @brief _StackResize function changes size of buffer to newSize. unused memory will be filled with poison. not intended for user usage, only through STACK_INIT call.
+ * @brief StackResize function changes size of buffer to newSize. unused memory will be filled with poison.
  * 
  * @param Stack_t* st - pointer to stack structure;
- * @param int newSize - new max capacity of buffer.
+ * @param int newSize - new max capacity of buffer. should be greater than st->cur.
  * 
  * @return int err    -  0 if executed correctly, 1 otherwise.
  */
-int _StackResize(Stack_t* st, int newSize);
+int StackResize(Stack_t* st, int newSize);
 
 /**
  * @brief StackPush function pushes data value to the top of the stack. resizes buffer if it is full.
@@ -264,7 +264,7 @@ int StackFree(Stack_t* st) {
     return 0;
 }
 
-int _StackResize(Stack_t* st, int newSize) {
+int StackResize(Stack_t* st, int newSize) {
     STACK_VERIFY(st);
 
     if (newSize < st->cur) {
@@ -287,7 +287,7 @@ int _StackResize(Stack_t* st, int newSize) {
     *((long*)(st->buf + sizeof(CANARY) + st->max * sizeof(data_t))) = CANARY;
     st->hash = STACK_GET_HASH(st);
 
-    STACK_LOG(st, "_StackResize");
+    STACK_LOG(st, "StackResize");
 
     STACK_VERIFY(st);
 
@@ -298,7 +298,7 @@ int StackPush(Stack_t* st, data_t data) {
     STACK_VERIFY(st);
 
     if (st->cur == st->max - 1) {
-        if (_StackResize(st, st->max * 2) != 0)
+        if (StackResize(st, st->max * 2) != 0)
             return 1;
     }
 
@@ -322,7 +322,7 @@ int StackPop(Stack_t* st) {
     }
 
     if (st->cur < (st->max / 2) - 10) {
-        if (_StackResize(st, st->max / 2) != 0)
+        if (StackResize(st, st->max / 2) != 0)
             return 1;
     }
 
