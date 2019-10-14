@@ -5,20 +5,20 @@
 
 //####################//
 
-#define SECURITY_FLAG 0                                                                                     // if set to 0, no security measures will be applied.
-#define STACK_INIT(stack, max) _StackConstruct(stack, #stack, max)                                          // macros for Stack_t constructor.
-#define STACK_VERIFY(stack) if (SECURITY_FLAG && _StackOK(stack) != 0) {_StackDump(stack); assert(!"ok");}  // macros for stack verification.
-#define STACK_LOG(stack, name) if (SECURITY_FLAG) {_StackLog(stack, name);}                                 // macros for stack logging.
-#define STACK_GET_HASH(stack) (SECURITY_FLAG) ? (_StackGetHash(stack)) : (0)
+#define SEC_ON                                                                              // if defined, security measures will be applied
+#define STACK_INIT(stack, max) _StackConstruct(stack, #stack, max)                          // macros for Stack_t constructor.
+#define STACK_VERIFY(stack) if (_StackOK(stack) != 0) {_StackDump(stack); assert(!"ok");}   // macros for stack verification.
 
-typedef int data_t;                             // stack's data type.
+typedef int data_t;                       // stack's data type.
 
+const int OFF     = 10;                   // offset from max / 2, in which stack should be shrinked.
+
+#ifdef SEC_ON
 const long CANARY = 0x1FEED5ADB16B00B5;   // canary value.
-data_t POISON     = (data_t)(173);        // poisonous value.
-const int OFF     = 10;                   // offset from max / 2, in which stack should be shrinked. 
+data_t POISON     = (data_t)(173);        // poisonous value. 
 
 // array of errors descriptions.
-char* ErrDesc[] = {             
+const char* ErrDesc[] = {             
     "stack is OK",
     "stack is pointed by NULL",
     "buf is pointed by NULL",
@@ -44,18 +44,25 @@ enum Err {
     E_CANARY2_BUF_DEAD, // second beffer canary is modified;
     E_INVALID_HASH,     // hash-sum has changed unexpectedly.
 };
+#endif
 
 // stack structure.
 struct _Stack_t {
+    #ifdef SEC_ON
     long canary1;       // first of canaries, surrounding structure;
+    #endif
+
     char* name;         // name of the stack. filled automatically during STACK_INIT call;
     int max;            // max capacity;
     int cur;            // current filling;
     char* buf;          // pointer to the buffer of stack;
+
+    #ifdef SEC_ON
     enum Err err;       // error, occured during programm. "OK" by default;
     long int hash;      // hash sum of structure;
     FILE* log;          // log file stream. to be opened in STACK_INIT and closed in StackFree function;
     long canary2;       // second of canaries, surrounding structure.
+    #endif
 };
 typedef struct _Stack_t Stack_t;
 
@@ -201,7 +208,9 @@ int _StackConstruct(Stack_t* st, const char* name, int max) {
     assert(st);
     assert(name);
 
+    #ifdef SEC_ON
     st->canary1 = CANARY;
+    #endif
 
     st->name    = calloc(1, sizeof(char) * strlen(name));
 
@@ -215,13 +224,18 @@ int _StackConstruct(Stack_t* st, const char* name, int max) {
     st->max = max;
     st->cur = 0;
 
+    #ifdef SEC_ON
     st->buf = calloc(1, 2 * sizeof(CANARY) + max * sizeof(data_t));
+    #else
+    st->buf = calloc(1, max * sizeof(data_t));
+    #endif
 
     if (st->buf == NULL) {
         printf("couldn't allocate memory for stack buffer. try smaller max\n");
         return 1;
     }
 
+    #ifdef SEC_ON
     *((long*)(st->buf)) = CANARY;
     *((long*)(st->buf + sizeof(CANARY) + max * sizeof(data_t))) = CANARY;
 
@@ -230,9 +244,7 @@ int _StackConstruct(Stack_t* st, const char* name, int max) {
 
     st->err       = OK;
     st->canary2   = CANARY;
-    st->hash      = STACK_GET_HASH(st);
-
-    printf("%ld\n", st->hash);
+    st->hash      = _StackGetHash(st);
 
     char* logName = calloc(1, sizeof(char) * strlen(name) + 5);
     memcpy(logName, name, strlen(name)); 
@@ -241,22 +253,23 @@ int _StackConstruct(Stack_t* st, const char* name, int max) {
     st->log = fopen(logName, "a");
     free(logName);
 
-    STACK_LOG(st, "_StackConstruct");
-
-    printf("*\n");
+    _StackLog(st, "_StackConstruct");
 
     STACK_VERIFY(st);
+    #endif
 
     return 0;
 }
 
 int StackFree(Stack_t* st) {
+    #ifdef SEC_ON
     STACK_VERIFY(st);
 
     if (fclose(st->log)) {
         printf("couldn't close log file. try crying on the floor\n");
         return 1;
     }
+    #endif
 
     free(st->name);
     free(st->buf);
@@ -266,14 +279,20 @@ int StackFree(Stack_t* st) {
 }
 
 int StackResize(Stack_t* st, int newSize) {
+    #ifdef SEC_ON
     STACK_VERIFY(st);
+    #endif
 
     if (newSize < st->cur) {
         printf("invalid <newSize>!\n");
         return 1;
     }
 
+    #ifdef SEC_ON
     st->buf = realloc(st->buf, 2 * sizeof(CANARY) + newSize * sizeof(data_t));
+    #else
+    st->buf = realloc(st->buf, newSize * sizeof(data_t));
+    #endif
 
     if (st->buf == NULL) {
         printf("couldn't allocate memory for new stack buffer. try commiting suicide\n");
@@ -282,40 +301,54 @@ int StackResize(Stack_t* st, int newSize) {
 
     st->max = newSize;
 
+    #ifdef SEC_ON
     for (int i = 0; st->cur + i < st->max; i++)
         *((data_t*)(st->buf + sizeof(CANARY) + (st->cur + i) * sizeof(data_t))) = POISON;
 
     *((long*)(st->buf + sizeof(CANARY) + st->max * sizeof(data_t))) = CANARY;
-    st->hash = STACK_GET_HASH(st);
+    st->hash = _StackGetHash(st);
 
-    STACK_LOG(st, "StackResize");
+    _StackLog(st, "StackResize");
 
     STACK_VERIFY(st);
+    #endif
 
     return 0;
 }
 
 int StackPush(Stack_t* st, data_t data) {
+    #ifdef SEC_ON
     STACK_VERIFY(st);
+    #endif
 
     if (st->cur == st->max - 1) {
         if (StackResize(st, st->max * 2) != 0)
             return 1;
     }
 
+    #ifdef SEC_ON
     *((data_t*)(st->buf + sizeof(CANARY) + st->cur * sizeof(data_t))) = data;
-    (st->cur)++;
-    st->hash = STACK_GET_HASH(st);
+    #else
+    *((data_t*)(st->buf + st->cur * sizeof(data_t))) = data;
+    #endif
 
-    STACK_LOG(st, "StackPush");
+    (st->cur)++;
+    
+    #ifdef SEC_ON
+    st->hash = _StackGetHash(st);
+
+    _StackLog(st, "StackPush");
 
     STACK_VERIFY(st);
+    #endif
 
     return 0;
 }
 
 int StackPop(Stack_t* st) {
+    #ifdef SEC_ON
     STACK_VERIFY(st);
+    #endif
 
     if (st->cur == 0) {
         printf("stack is already empty, unable to pop!\n");
@@ -328,26 +361,37 @@ int StackPop(Stack_t* st) {
     }
 
     (st->cur)--;
-    st->hash = STACK_GET_HASH(st);
 
-    STACK_LOG(st, "StackPop");
+    #ifdef SEC_ON
+    st->hash = _StackGetHash(st);
+
+    _StackLog(st, "StackPop");
 
     STACK_VERIFY(st);
+    #endif
 
     return 0;
 }
 
-data_t StackPeek(Stack_t* st) {
+data_t StackPeek(Stack_t* st) { //TODO: ifdef for SEC_ON
+    #ifdef SEC_ON
     STACK_VERIFY(st);
 
-    STACK_LOG(st, "StackPeek");
+    _StackLog(st, "StackPeek");
 
     if (st->cur != 0)
         return *((data_t*)(st->buf + sizeof(CANARY) + (st->cur - 1) * sizeof(data_t)));
     else
         return POISON;
+    #else
+    if (st->cur != 0)
+        return *((data_t*)(st->buf + (st->cur - 1) * sizeof(data_t)));
+    else
+        return -1;
+    #endif
 }
 
+#ifdef SEC_ON
 int _StackOK(Stack_t* st) {
     if (st == NULL)
         return E_NULL_PTR_STACK;        
@@ -473,3 +517,4 @@ int _StackGetHash(Stack_t* st) {
 
     return hash;
 }
+#endif
