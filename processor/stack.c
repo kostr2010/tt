@@ -1,8 +1,13 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <assert.h>
+
 #include "stack.h"
 
 //####################//
 
-int* ax, bx, cx, dx;
+const int DELTA = 10;   // offset from max / 2, in which stack should be shrinked.
 
 //####################//
 
@@ -163,7 +168,7 @@ int StackPop(Stack_t* st) {
         return -1;
     }
 
-    if (st->cur < (st->max / 2) - OFF) {
+    if (st->cur < (st->max / 2) - DELTA) {
         if (StackResize(st, st->max / 2) != 0)
             return 1;
     }
