@@ -75,7 +75,7 @@ CMD_DEF("push", 'a',
                 mem->curCmd += REG_SZ;
             } else {
                 mem->err = E_CORRUPTED_BIN;
-                return 1;
+                return mem->err;
             }
         })
 
@@ -132,7 +132,7 @@ CMD_DEF("pop",  'b',
         {   
             if (mem->stk->cur == 0) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
 
             mem->regs[mem->cmds[mem->curCmd] - 97] = StackPeek(mem->stk);
@@ -184,6 +184,7 @@ CMD_DEF("call", 'd',
             mem->curCmd += NUM_SZ;
             printf("shall return to: %d\n", mem->curCmd);
             StackPush(mem->ret, mem->curCmd);
+            printf("%d\n", mem->ret->cur);
             mem->curCmd = *(int*)(mem->cmds + mem->curCmd - NUM_SZ);
         })
 
@@ -203,7 +204,7 @@ CMD_DEF("ret",  'e',
         {   
             if (mem->ret->cur == 0) {
                 mem->err = E_RET_WITHOUT_CALL;
-                return 1;
+                return mem->err;
             }
 
             printf("returned to %d\n", StackPeek(mem->ret));
@@ -342,7 +343,7 @@ CMD_DEF("in",   'h',
 
             if (scanf("%lf", &input) != 1) {
                 mem->err = E_INV_INPUT;
-                return 1;
+                return mem->err;
             }
 
             StackPush(mem->stk, (int)(input * PRECISION));
@@ -360,7 +361,7 @@ CMD_DEF("out",  'i',
             if (mem->stk->cur == 0)
                 printf("stack is empty right now\n");
             else
-                printf("%d\n", StackPeek(mem->stk));
+                printf("%fl\n", (double)(StackPeek(mem->stk)) / PRECISION);
         })
 
 // jumps to given label
@@ -448,7 +449,7 @@ CMD_DEF("jz",   'k',
         {   
             if (mem->stk->cur == 0) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
 
             if (StackPeek(mem->stk) == 0)
@@ -497,7 +498,7 @@ CMD_DEF("je",   'l',
         {
             if (mem->stk->cur < 2) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
             
             int tmp1 = StackPeek(mem->stk);
@@ -551,7 +552,7 @@ CMD_DEF("jnz",  'm',
         {
             if (mem->stk->cur != 0) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
 
             if (StackPeek(mem->stk) == 0)
@@ -600,7 +601,7 @@ CMD_DEF("jne",  'n',
         {
             if (mem->stk->cur < 2) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
             
             int tmp1 = StackPeek(mem->stk);
@@ -654,7 +655,7 @@ CMD_DEF("jg",   'o',
         {
             if (mem->stk->cur < 2) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
             
             int tmp1 = StackPeek(mem->stk);
@@ -708,7 +709,7 @@ CMD_DEF("jl",   'p',
         {
             if (mem->stk->cur < 2) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
             
             int tmp1 = StackPeek(mem->stk);
@@ -762,7 +763,7 @@ CMD_DEF("jge",  'q',
         {
             if (mem->stk->cur < 2) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
             
             int tmp1 = StackPeek(mem->stk);
@@ -815,7 +816,7 @@ CMD_DEF("jle",  'r',
         }, 
         {if (mem->stk->cur < 2) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
             
             int tmp1 = StackPeek(mem->stk);
@@ -842,7 +843,7 @@ CMD_DEF("add",  's',
         {
             if (mem->stk->cur < 2) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
             
             int tmp1 = StackPeek(mem->stk);
@@ -869,7 +870,7 @@ CMD_DEF("sub",  't',
         {
             if (mem->stk->cur < 2) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
             
             int tmp1 = StackPeek(mem->stk);
@@ -896,7 +897,7 @@ CMD_DEF("mul",  'u',
         {
             if (mem->stk->cur < 2) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
             
             double tmp1 = (double)StackPeek(mem->stk) / PRECISION;
@@ -923,7 +924,7 @@ CMD_DEF("div",  'v',
         {
             if (mem->stk->cur < 2) {
                 mem->err = E_FEW_ARGS_IN_STACK;
-                return 1;
+                return mem->err;
             }
             
             double tmp1 = (double)StackPeek(mem->stk) / PRECISION;
@@ -956,7 +957,7 @@ CMD_DEF("sqrt",  'w',
             double tmp1 = (double)(StackPeek(mem->stk)) / PRECISION;
             if (tmp1 < 0) {
                 mem->err = E_INV_ARG_IN_STACK;
-                return 1;
+                return mem->err;
             }
 
             StackPop(mem->stk);
