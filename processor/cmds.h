@@ -1,15 +1,22 @@
+#define CHECK_EXTRA_ARGS \
+        char* cmd = FindWord(line, off, &off);\
+        if (cmd != NULL) {\
+            eBuf->err = E_MANY_ARGS;\
+            return 1;\
+        }
+
+#define CHECK_NO_ARGS \
+        if (arg == NULL) {\
+                eBuf->err = E_NO_ARG;\
+                return 1;\
+        }
+
 // pushes value either from code or from register to stack
 CMD_DEF("push", 'a', 
         {   
-            *(eBuf->cmds + eBuf->curCmd) = 'a';
-            eBuf->curCmd += CMD_SZ;
-            
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+
+            CHECK_NO_ARGS;
             
             char type = GetArgType(arg, off - (arg - line->buf));
             
@@ -17,46 +24,16 @@ CMD_DEF("push", 'a',
                 *((char*)(eBuf->cmds + eBuf->curCmd)) = 'n';
                 eBuf->curCmd += ARGTYPE_SZ;
                 *((int*)(eBuf->cmds + eBuf->curCmd)) = (int)(atof(arg) * PRECISION);
-                printf("  pushed number: %d\n", *((int*)(eBuf->cmds + eBuf->curCmd)));
                 eBuf->curCmd += NUM_SZ;
             } else {
-                if (strncmp("ax", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'r';
-                    eBuf->curCmd += ARGTYPE_SZ;
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'a';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("bx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'r';
-                    eBuf->curCmd += ARGTYPE_SZ;
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'b';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("cx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'r';
-                    eBuf->curCmd += ARGTYPE_SZ;
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'c';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("dx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'r';
-                    eBuf->curCmd += ARGTYPE_SZ;
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'd';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("ex", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'r';
-                    eBuf->curCmd += ARGTYPE_SZ;
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'e';
-                    eBuf->curCmd += REG_SZ;
-                } else {
-                    eBuf->err = E_INV_ARG;
-                    
+                *((char*)(eBuf->cmds + eBuf->curCmd)) = 'r';
+                eBuf->curCmd += ARGTYPE_SZ;
+
+                if (EbufAddReg(eBuf, arg) == 1)
                     return 1;
-                }
             }
 
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -66,12 +43,10 @@ CMD_DEF("push", 'a',
             if (type == 'n') {
                 mem->curCmd += ARGTYPE_SZ;
                 StackPush(mem->stk, *(int*)(mem->cmds + mem->curCmd));
-                printf("pushed: %d\n", *(int*)(mem->cmds + mem->curCmd));
                 mem->curCmd += NUM_SZ;
             } else if (type == 'r') {
                 mem->curCmd += ARGTYPE_SZ;
-                StackPush(mem->stk, mem->regs[mem->cmds[mem->curCmd] - 97]); // a -> 0, b -> 1, c -> 2, d -> 3, e(0) -> 4
-                printf("pushed: %d from %cx register\n", mem->regs[mem->cmds[mem->curCmd] - 97], mem->cmds[mem->curCmd]);
+                StackPush(mem->stk, mem->regs[mem->cmds[mem->curCmd] - 97]);
                 mem->curCmd += REG_SZ;
             } else {
                 mem->err = E_CORRUPTED_BIN;
@@ -82,9 +57,6 @@ CMD_DEF("push", 'a',
 // if called with no arguments, pops last value stored in stack, if register is given as an argument, value is stored in it
 CMD_DEF("pop",  'b', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'b';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
             if (arg == NULL) {
                 *((char*)(eBuf->cmds + eBuf->curCmd)) = 'e';
@@ -99,33 +71,11 @@ CMD_DEF("pop",  'b',
                 eBuf->err = E_INV_ARG_TYPE;
                 
                 return 1;
-            } else {
-                if (strncmp("ax", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'a';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("bx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'b';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("cx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'c';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("dx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'd';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("ex", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'e';
-                    eBuf->curCmd += REG_SZ;
-                } else {
-                    eBuf->err = E_INV_ARG;
-                    
+            } else
+                if (EbufAddReg(eBuf, arg) == 1)
                     return 1;
-                }
-            }
 
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -134,9 +84,11 @@ CMD_DEF("pop",  'b',
                 mem->err = E_FEW_ARGS_IN_STACK;
                 return mem->err;
             }
-
-            mem->regs[mem->cmds[mem->curCmd] - 97] = StackPeek(mem->stk);
-            printf("popped: %d to %cx register\n", StackPeek(mem->stk), mem->cmds[mem->curCmd]);
+            
+            if (mem->cmds[mem->curCmd] != 'e')
+                mem->regs[mem->cmds[mem->curCmd] - 97] = StackPeek(mem->stk);
+        
+            
             StackPop(mem->stk);
             mem->curCmd += REG_SZ;
         })
@@ -144,15 +96,9 @@ CMD_DEF("pop",  'b',
 // indicates function call
 CMD_DEF("call", 'd', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'd';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
 
             int lblNum = 0;
             for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
@@ -171,33 +117,21 @@ CMD_DEF("call", 'd',
                 eBuf->err = E_UNDEC_LBL;
                 return 1;
             }
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
-            printf("  name (1st char): %c, addr: %d\n", *arg, *(int*)(eBuf->cmds + eBuf->curCmd - NUM_SZ));
+
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
         {   
             mem->curCmd += NUM_SZ;
-            printf("shall return to: %d\n", mem->curCmd);
             StackPush(mem->ret, mem->curCmd);
-            printf("%d\n", mem->ret->cur);
             mem->curCmd = *(int*)(mem->cmds + mem->curCmd - NUM_SZ);
         })
 
 // indicates end of the function declaration
 CMD_DEF("ret",  'e', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'e';
-            eBuf->curCmd += CMD_SZ;
-
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -207,7 +141,6 @@ CMD_DEF("ret",  'e',
                 return mem->err;
             }
 
-            printf("returned to %d\n", StackPeek(mem->ret));
             mem->curCmd = StackPeek(mem->ret);
             StackPop(mem->ret);
         })
@@ -215,15 +148,9 @@ CMD_DEF("ret",  'e',
 // decreases value, stored in register
 CMD_DEF("dec",  'f', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'f';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
             
             char type = GetArgType(arg, off - (arg - line->buf));
             
@@ -231,33 +158,11 @@ CMD_DEF("dec",  'f',
                 eBuf->err = E_INV_ARG_TYPE;
                 
                 return 1;
-            } else {
-                if (strncmp("ax", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'a';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("bx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'b';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("cx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'c';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("dx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'd';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("ex", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'e';
-                    eBuf->curCmd += REG_SZ;
-                } else {
-                    eBuf->err = E_INV_ARG;
-                    
+            } else if (type == 'r')
+                if (EbufAddReg(eBuf, arg) == 1)
                     return 1;
-                }
-            }
 
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -274,15 +179,9 @@ CMD_DEF("dec",  'f',
 // increases value, stored in register
 CMD_DEF("inc",  'g', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'g';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
             
             char type = GetArgType(arg, off - (arg - line->buf));
             
@@ -290,33 +189,11 @@ CMD_DEF("inc",  'g',
                 eBuf->err = E_INV_ARG_TYPE;
                 
                 return 1;
-            } else {
-                if (strncmp("ax", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'a';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("bx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'b';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("cx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'c';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("dx", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'd';
-                    eBuf->curCmd += REG_SZ;
-                } else if (strncmp("ex", arg, 2) == 0) {
-                    *(char*)(eBuf->cmds + eBuf->curCmd) = 'e';
-                    eBuf->curCmd += REG_SZ;
-                } else {
-                    eBuf->err = E_INV_ARG;
-                    
+            } else
+                if (EbufAddReg(eBuf, arg) == 1)
                     return 1;
-                }
-            }
 
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -333,8 +210,7 @@ CMD_DEF("inc",  'g',
 // reads number from keyboard
 CMD_DEF("in",   'h', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'h';
-            eBuf->curCmd += CMD_SZ;
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -352,8 +228,7 @@ CMD_DEF("in",   'h',
 // prints top element of stack
 CMD_DEF("out",  'i', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'i';
-            eBuf->curCmd += CMD_SZ;
+            CHECK_EXTRA_ARGS;
 
             return 0;
         },
@@ -361,45 +236,84 @@ CMD_DEF("out",  'i',
             if (mem->stk->cur == 0)
                 printf("stack is empty right now\n");
             else
-                printf("%fl\n", (double)(StackPeek(mem->stk)) / PRECISION);
+                printf("%lf\n", (double)(StackPeek(mem->stk)) / PRECISION);
+        })
+
+// mov dest src
+CMD_DEF("mov", 'z',
+        {
+            char* arg = FindWord(line, off, &off);
+
+            CHECK_NO_ARGS;
+
+            char type = GetArgType(arg, off - (arg - line->buf));
+            
+            if (type == 'n') {
+                eBuf->err = E_INV_ARG_TYPE;
+                return 1;
+            } else {
+                if (EbufAddReg(eBuf, arg) == 1)
+                    return 1;
+            }
+
+            arg = FindWord(line, off, &off);
+
+            CHECK_NO_ARGS;
+
+            type = GetArgType(arg, off - (arg - line->buf));
+            
+            if (type == 'n') {
+                *((char*)(eBuf->cmds + eBuf->curCmd)) = 'n';
+                eBuf->curCmd += ARGTYPE_SZ;
+                *((int*)(eBuf->cmds + eBuf->curCmd)) = (int)(atof(arg) * PRECISION);
+                eBuf->curCmd += NUM_SZ;
+            } else {
+                *((char*)(eBuf->cmds + eBuf->curCmd)) = 'r';
+                eBuf->curCmd += ARGTYPE_SZ;
+
+                if (EbufAddReg(eBuf, arg) == 1)
+                    return 1;
+            }
+
+            CHECK_EXTRA_ARGS;
+
+            return 0;
+        },
+        {   
+            int reg = mem->cmds[mem->curCmd] - 97;
+
+            mem->curCmd += REG_SZ;
+
+            char type = mem->cmds[mem->curCmd];
+            mem->curCmd += ARGTYPE_SZ;
+
+            if (type == 'n' && reg != 4) {
+                mem->regs[reg] = *(int*)(mem->cmds + mem->curCmd);
+                mem->curCmd += NUM_SZ;
+            } else if (type == 'n' && reg == 4) {
+                mem->curCmd += NUM_SZ;
+            } else if (type == 'r' && reg != 4) {
+                mem->regs[reg] = mem->regs[mem->cmds[mem->curCmd] - 97];
+                mem->curCmd += REG_SZ;
+            } else if (type == 'r' && reg == 4) {
+                mem->curCmd += REG_SZ;
+            } else {
+                mem->err = E_CORRUPTED_BIN;
+                return mem->err;
+            }
         })
 
 // jumps to given label
 CMD_DEF("jmp", 'j', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'j';
-            eBuf->curCmd += CMD_SZ;
-            
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
 
-            int lblNum = 0;
-            for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
-                if (eBuf->lbls[lblNum].name && strncmp(eBuf->lbls[lblNum].name, arg, strlen(eBuf->lbls[lblNum].name)) == 0) {
-                    *(int*)(eBuf->cmds + eBuf->curCmd) = eBuf->lbls[lblNum].addr;
-                    eBuf->curCmd += NUM_SZ;
+            CHECK_NO_ARGS;
 
-                    break;
-                }
-            }
+            if (_FindLabel(eBuf, line, arg, off) != 0)
+                return 1;
 
-            if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) != -1) {
-                *(int*)(eBuf->cmds + eBuf->curCmd) = -1;
-                eBuf->curCmd += NUM_SZ;   
-            } else if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) == -1) {
-                eBuf->err = E_UNDEC_LBL;
-                return 1;
-            }
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
-            printf("  name (1st char): %c, addr: %d\n", *arg, *(int*)(eBuf->cmds + eBuf->curCmd - NUM_SZ));
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -410,39 +324,14 @@ CMD_DEF("jmp", 'j',
 // jumps to given label if last stack element is zero
 CMD_DEF("jz",   'k', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'k';
-            eBuf->curCmd += CMD_SZ;
-            
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
 
-            int lblNum = 0;
-            for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
-                if (eBuf->lbls[lblNum].name && strncmp(eBuf->lbls[lblNum].name, arg, strlen(eBuf->lbls[lblNum].name)) == 0) {
-                    *(int*)(eBuf->cmds + eBuf->curCmd) = eBuf->lbls[lblNum].addr;
-                    eBuf->curCmd += NUM_SZ;
-
-                    break;
-                }
-            }
-
-            if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) != -1) {
-                *(int*)(eBuf->cmds + eBuf->curCmd) = -1;
-                eBuf->curCmd += NUM_SZ;   
-            } else if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) == -1) {
-                eBuf->err = E_UNDEC_LBL;
+            if (_FindLabel(eBuf, line, arg, off) != 0)
                 return 1;
-            }
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
-            printf("  name (1st char): %c, addr: %d\n", *arg, *(int*)(eBuf->cmds + eBuf->curCmd - NUM_SZ));
+
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -454,44 +343,21 @@ CMD_DEF("jz",   'k',
 
             if (StackPeek(mem->stk) == 0)
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
+            else 
+                mem->curCmd += NUM_SZ;
         })
 
 // jumps to given label if last two elements of stack are equal
 CMD_DEF("je",   'l', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'l';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
 
-            int lblNum = 0;
-            for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
-                if (eBuf->lbls[lblNum].name && strncmp(eBuf->lbls[lblNum].name, arg, strlen(eBuf->lbls[lblNum].name)) == 0) {
-                    *(int*)(eBuf->cmds + eBuf->curCmd) = eBuf->lbls[lblNum].addr;
-                    eBuf->curCmd += NUM_SZ;
-
-                    break;
-                }
-            }
-
-            if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) != -1) {
-                *(int*)(eBuf->cmds + eBuf->curCmd) = -1;
-                eBuf->curCmd += NUM_SZ;   
-            } else if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) == -1) {
-                eBuf->err = E_UNDEC_LBL;
+            if (_FindLabel(eBuf, line, arg, off) != 0)
                 return 1;
-            }
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
-            printf("  name (1st char): %c, addr: %d\n", *arg, *(int*)(eBuf->cmds + eBuf->curCmd - NUM_SZ));
+            
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -506,6 +372,8 @@ CMD_DEF("je",   'l',
 
             if (StackPeek(mem->stk) == tmp1)
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
+            else
+                mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);
         })
@@ -513,39 +381,14 @@ CMD_DEF("je",   'l',
 // jumps to given label if last stack element is non-zero
 CMD_DEF("jnz",  'm', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'm';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
 
-            int lblNum = 0;
-            for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
-                if (eBuf->lbls[lblNum].name && strncmp(eBuf->lbls[lblNum].name, arg, strlen(eBuf->lbls[lblNum].name)) == 0) {
-                    *(int*)(eBuf->cmds + eBuf->curCmd) = eBuf->lbls[lblNum].addr;
-                    eBuf->curCmd += NUM_SZ;
-
-                    break;
-                }
-            }
-
-            if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) != -1) {
-                *(int*)(eBuf->cmds + eBuf->curCmd) = -1;
-                eBuf->curCmd += NUM_SZ;   
-            } else if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) == -1) {
-                eBuf->err = E_UNDEC_LBL;
+            if (_FindLabel(eBuf, line, arg, off) != 0)
                 return 1;
-            }
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
-            printf("  name (1st char): %c, addr: %d\n", *arg, *(int*)(eBuf->cmds + eBuf->curCmd - NUM_SZ));
+            
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -557,44 +400,21 @@ CMD_DEF("jnz",  'm',
 
             if (StackPeek(mem->stk) == 0)
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
+            else
+                mem->curCmd += NUM_SZ;
         })
 
 // jumps to given label if last two eleents of stack are not equal
 CMD_DEF("jne",  'n', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'n';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
 
-            int lblNum = 0;
-            for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
-                if (eBuf->lbls[lblNum].name && strncmp(eBuf->lbls[lblNum].name, arg, strlen(eBuf->lbls[lblNum].name)) == 0) {
-                    *(int*)(eBuf->cmds + eBuf->curCmd) = eBuf->lbls[lblNum].addr;
-                    eBuf->curCmd += NUM_SZ;
-
-                    break;
-                }
-            }
-
-            if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) != -1) {
-                *(int*)(eBuf->cmds + eBuf->curCmd) = -1;
-                eBuf->curCmd += NUM_SZ;   
-            } else if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) == -1) {
-                eBuf->err = E_UNDEC_LBL;
+            if (_FindLabel(eBuf, line, arg, off) != 0)
                 return 1;
-            }
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
-            printf("  name (1st char): %c, addr: %d\n", *arg, *(int*)(eBuf->cmds + eBuf->curCmd - NUM_SZ));
+            
+            CHECK_EXTRA_ARGS;
 
             return 0;
         },
@@ -609,46 +429,23 @@ CMD_DEF("jne",  'n',
 
             if (StackPeek(mem->stk) != tmp1)
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
+            else 
+                mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);
         })
 
-// jumps to given label if last element of stack is qreater than prior
+// jumps to given label if last element of stack is greater than prior
 CMD_DEF("jg",   'o', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'o';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
 
-            int lblNum = 0;
-            for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
-                if (eBuf->lbls[lblNum].name && strncmp(eBuf->lbls[lblNum].name, arg, strlen(eBuf->lbls[lblNum].name)) == 0) {
-                    *(int*)(eBuf->cmds + eBuf->curCmd) = eBuf->lbls[lblNum].addr;
-                    eBuf->curCmd += NUM_SZ;
-
-                    break;
-                }
-            }
-
-            if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) != -1) {
-                *(int*)(eBuf->cmds + eBuf->curCmd) = -1;
-                eBuf->curCmd += NUM_SZ;   
-            } else if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) == -1) {
-                eBuf->err = E_UNDEC_LBL;
+            if (_FindLabel(eBuf, line, arg, off) != 0)
                 return 1;
-            }
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
-            printf("  name (1st char): %c, addr: %d\n", *arg, *(int*)(eBuf->cmds + eBuf->curCmd - NUM_SZ));
+
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -661,8 +458,12 @@ CMD_DEF("jg",   'o',
             int tmp1 = StackPeek(mem->stk);
             StackPop(mem->stk);
 
+            //printf("if success, will jump to %d\n", *(int*)(mem->cmds + mem->curCmd));
+
             if (StackPeek(mem->stk) < tmp1)
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
+            else
+                mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);
         })
@@ -670,39 +471,14 @@ CMD_DEF("jg",   'o',
 // jumps to given label if last element of stack is lesser than prior
 CMD_DEF("jl",   'p', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'p';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
 
-            int lblNum = 0;
-            for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
-                if (eBuf->lbls[lblNum].name && strncmp(eBuf->lbls[lblNum].name, arg, strlen(eBuf->lbls[lblNum].name)) == 0) {
-                    *(int*)(eBuf->cmds + eBuf->curCmd) = eBuf->lbls[lblNum].addr;
-                    eBuf->curCmd += NUM_SZ;
-
-                    break;
-                }
-            }
-
-            if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) != -1) {
-                *(int*)(eBuf->cmds + eBuf->curCmd) = -1;
-                eBuf->curCmd += NUM_SZ;   
-            } else if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) == -1) {
-                eBuf->err = E_UNDEC_LBL;
+            if (_FindLabel(eBuf, line, arg, off) != 0)
                 return 1;
-            }
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
-            printf("  name (1st char): %c, addr: %d\n", *arg, *(int*)(eBuf->cmds + eBuf->curCmd - NUM_SZ));
+            
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -717,6 +493,8 @@ CMD_DEF("jl",   'p',
 
             if (StackPeek(mem->stk) > tmp1)
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
+            else 
+                mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);
         })
@@ -724,39 +502,14 @@ CMD_DEF("jl",   'p',
 // jumps to given label if last element of stack is qreater or equal than prior
 CMD_DEF("jge",  'q', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'q';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
 
-            int lblNum = 0;
-            for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
-                if (eBuf->lbls[lblNum].name && strncmp(eBuf->lbls[lblNum].name, arg, strlen(eBuf->lbls[lblNum].name)) == 0) {
-                    *(int*)(eBuf->cmds + eBuf->curCmd) = eBuf->lbls[lblNum].addr;
-                    eBuf->curCmd += NUM_SZ;
-
-                    break;
-                }
-            }
-
-            if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) != -1) {
-                *(int*)(eBuf->cmds + eBuf->curCmd) = -1;
-                eBuf->curCmd += NUM_SZ;   
-            } else if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) == -1) {
-                eBuf->err = E_UNDEC_LBL;
+            if (_FindLabel(eBuf, line, arg, off) != 0)
                 return 1;
-            }
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
-            printf("  name (1st char): %c, addr: %d\n", *arg, *(int*)(eBuf->cmds + eBuf->curCmd - NUM_SZ));
+            
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -769,8 +522,10 @@ CMD_DEF("jge",  'q',
             int tmp1 = StackPeek(mem->stk);
             StackPop(mem->stk);
 
-            if (StackPeek(mem->stk) <= tmp1)
+            if (tmp1 >= StackPeek(mem->stk))
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
+            else 
+                mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);
         })
@@ -778,39 +533,14 @@ CMD_DEF("jge",  'q',
 // jumps to given label if last element of stack is lesser or equal than prior
 CMD_DEF("jle",  'r', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'r';
-            eBuf->curCmd += CMD_SZ;
-
             char* arg = FindWord(line, off, &off);
-            if (arg == NULL) {
-                eBuf->err = E_NO_ARG;
-                
-                return 1;
-            }
+            
+            CHECK_NO_ARGS;
 
-            int lblNum = 0;
-            for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
-                if (eBuf->lbls[lblNum].name && strncmp(eBuf->lbls[lblNum].name, arg, strlen(eBuf->lbls[lblNum].name)) == 0) {
-                    *(int*)(eBuf->cmds + eBuf->curCmd) = eBuf->lbls[lblNum].addr;
-                    eBuf->curCmd += NUM_SZ;
-
-                    break;
-                }
-            }
-
-            if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) != -1) {
-                *(int*)(eBuf->cmds + eBuf->curCmd) = -1;
-                eBuf->curCmd += NUM_SZ;   
-            } else if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) == -1) {
-                eBuf->err = E_UNDEC_LBL;
+            if (_FindLabel(eBuf, line, arg, off) != 0)
                 return 1;
-            }
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                
-                return 1;
-            }
-            printf("  name (1st char): %c, addr: %d\n", *arg, *(int*)(eBuf->cmds + eBuf->curCmd - NUM_SZ));
+            
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -824,19 +554,15 @@ CMD_DEF("jle",  'r',
 
             if (StackPeek(mem->stk) >= tmp1)
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
+            else 
+                mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);})
 
 // adds last stack element to prior
 CMD_DEF("add",  's', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 's';
-            eBuf->curCmd += CMD_SZ;
-
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -857,13 +583,7 @@ CMD_DEF("add",  's',
 // substracts last stack element from prior
 CMD_DEF("sub",  't', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 't';
-            eBuf->curCmd += CMD_SZ;
-
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -884,13 +604,7 @@ CMD_DEF("sub",  't',
 // multiplicates last stack element to prior
 CMD_DEF("mul",  'u', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'u';
-            eBuf->curCmd += CMD_SZ;
-
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -911,13 +625,7 @@ CMD_DEF("mul",  'u',
 // divides last stack element by prior
 CMD_DEF("div",  'v', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'v';
-            eBuf->curCmd += CMD_SZ;
-
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -938,13 +646,7 @@ CMD_DEF("div",  'v',
 // gets square root from last stack element
 CMD_DEF("sqrt",  'w', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'w';
-            eBuf->curCmd += CMD_SZ;
-
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
@@ -968,19 +670,43 @@ CMD_DEF("sqrt",  'w',
 // indicates end of the program
 CMD_DEF("end",  'x', 
         {
-            *(eBuf->cmds + eBuf->curCmd) = 'x';
-            eBuf->curCmd += CMD_SZ;
-
-            if (IsWhitespace(line, off) == 0) {
-                eBuf->err = E_MANY_ARGS;
-                return 1;
-            }
+            CHECK_EXTRA_ARGS;
 
             return 0;
         }, 
         {
             return 0;
         })
+
+CMD_DEF("alert", 'y',
+        {
+            char* arg = FindWord(line, off, &off);
+
+            CHECK_NO_ARGS;
+
+            int msgLen = line->len - (arg - line->buf);        
+            if (msgLen >= DELTA_CMDS - CMD_SZ - NUM_SZ) {
+                eBuf->err = E_LONG_ALERT_MSG;
+                return 1;
+            }
+
+            *(int*)(eBuf->cmds + eBuf->curCmd) = msgLen;
+            eBuf->curCmd += NUM_SZ;
+
+            memcpy(eBuf->cmds + eBuf->curCmd, arg, msgLen);
+            eBuf->curCmd += msgLen;
+
+            return 0;            
+        },
+        {   
+            int len = *(int*)(mem->cmds + mem->curCmd);
+            mem->curCmd += NUM_SZ;
+
+            fwrite(mem->cmds + mem->curCmd, sizeof(char), len, stdout);
+            printf("\n");
+            mem->curCmd += len;
+        })
+
 
 /*
 // 

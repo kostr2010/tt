@@ -29,6 +29,7 @@ enum _AssemblerErrs {
     E_FEW_ARGS,
     E_MANY_ARGS,
     E_UNDEC_LBL,
+    E_LONG_ALERT_MSG,
     //E_NO_END_SEQ,
 };
 typedef enum _AssemblerErrs AsmErrs;
@@ -40,10 +41,11 @@ const char* AsmErrsDesc[] = {
     "invalid argument type!\n",
     "invalid instruction sequence!\n",
     "expected an argument, but none given!\n",
-    "invalig argument given!\n",
+    "invalid argument given!\n",
     "too few argumentd given!\n",
     "too many arguments given!\n",
     "undeclared label!\n",
+    "alert message is too long!\n",
     //"no end sequence given!\n",     
 };
 
@@ -94,32 +96,33 @@ char* FindAndReplace(char* buf, int len, char old, char new);
 char* FindWord(String* str, int off, int* end);
 int IsWhitespace(String* str, int off);
 char GetArgType(char* arg, int len);
+int _FindLabel(ExecBuf* eBuf, String* line, char* lblPtr, int off);
+int EbufAddReg(ExecBuf* eBuf, char* arg);
 
 //####################//
 
 int main(int argc , char *argv[]) {
     ExecBuf* eBuf = ExecBufAlloc();
-
     if (ExecBufInit(eBuf) != 0) {
         printf("unable to initialize translation buffer!\n");
         exit(-1);
     }
 
-    int res = Compile(argv[1], eBuf);
+    printf("\ncompilation started..\n\n");
 
+    int res = Compile(argv[1], eBuf);
     if (res != 0) {
         printf("compilation error in line %d! %s\n", res, AsmErrsDesc[eBuf->err]);
         exit(res);
     }
 
     res = Compile(argv[1], eBuf);
-
     if (res != 0) {
         printf("compilation error in line %d! %s\n", res, AsmErrsDesc[eBuf->err]);
         exit(res);
     }
 
-    printf("/ after compilation:\n/ %d~(bytes) to store commands, %d~(bytes) to store labels\n", eBuf->maxCmd, eBuf->maxLbl * sizeof(Label));
+    printf("occupied %d~(bytes) to store commands, %d~(bytes) to store labels\n\n", eBuf->maxCmd, eBuf->maxLbl * sizeof(Label));
 
     int fd = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fd == -1) {
@@ -127,7 +130,12 @@ int main(int argc , char *argv[]) {
         exit(-1);
     }
 
-    if (write(fd, eBuf->cmds, eBuf->maxCmd) != eBuf->maxCmd);
+    if (write(fd, eBuf->cmds, eBuf->maxCmd) != eBuf->maxCmd) {
+        printf("unable to write cmd fuffer!\n");
+        exit(-1);
+    }
+
+    printf("compilation terminated successfully\n\n");
 
     close(fd);
     ExecBufFree(eBuf);
@@ -231,21 +239,14 @@ int Compile(char* inName, ExecBuf* eBuf) {
     assert(inName);
     assert(eBuf);
 
-    printf("///////////////////////\n"
-           "/ compilation started /\n"
-           "///////////////////////\n");
-
     String* code = CodeRead(inName);
 
     int nLines = CountLines(code->buf, code->len);
     String* matrix = DivideByLines(code->buf, code->len, nLines);
 
     for (int i = 0; i < nLines; i++) {
-        //printf("%d>>\n", i);
         if (LineInterpret(&(matrix[i]), eBuf) != 0) {
-            eBuf->maxCmd = eBuf->curCmd;
             eBuf->curCmd = 0;
-            eBuf->maxLbl = eBuf->curLbl;
             eBuf->curLbl = 0;
 
             StringFree(code);
@@ -255,17 +256,11 @@ int Compile(char* inName, ExecBuf* eBuf) {
         }
     }
 
-    eBuf->maxCmd = eBuf->curCmd;
     eBuf->curCmd = 0;
-    eBuf->maxLbl = eBuf->curLbl;
     eBuf->curLbl = 0;
 
     StringFree(code);
     free(matrix);
-
-    printf("/////////////////////\n"
-           "/ compilation ended /\n"
-           "/////////////////////\n\n");
 
     return 0;
 }
@@ -304,49 +299,57 @@ int LineInterpret(String* line, ExecBuf* eBuf) {
     // check if empty
     if (line->len == 0)
         return 0;
-    
-    // check if whitespace
-    if (IsWhitespace(line, 0) == 1)
-        return 0;
 
     int off = 0;
     char* cmd = FindWord(line, off, &off);
-    
-    // looking for labels
-    char* lblPos = memchr(line->buf, ':', line->len);
-    if (lblPos == cmd) {
-        eBuf->err = E_INV_LBL_NAME;
-        return 1;
-    }
 
-    if (lblPos != NULL) {
+    // check if whitespace    
+    if (cmd == NULL)
+        return 0;
+
+    char* lblPos = memchr(line->buf, ':', line->len);
+
+    if (lblPos == cmd) {
+        // if no label name was given
+        eBuf->err = E_INV_LBL_NAME;
+        
+        return 1;
+    } else if (lblPos != NULL) {
         // if label found
-        if (eBuf->curLbl >= eBuf->maxLbl - 1) {
+        if (eBuf->curLbl >= eBuf->maxLbl - DELTA_LBLS) {
             eBuf->lbls = realloc(eBuf->lbls, eBuf->maxLbl * 2);
+            bzero(eBuf->lbls + eBuf->maxLbl, eBuf->maxLbl);
             eBuf->maxLbl *= 2;
         }
 
         LabelInit(&(eBuf->lbls[eBuf->curLbl]), lblPos - cmd + 1);
         eBuf->lbls[eBuf->curLbl].addr = eBuf->curCmd;
         memcpy(eBuf->lbls[eBuf->curLbl].name, cmd, lblPos - cmd);
-        printf("label found! addr: %d, name: %s\n", eBuf->lbls[eBuf->curLbl].addr, eBuf->lbls[eBuf->curLbl].name);
         eBuf->curLbl++;
 
         return 0;
-    } else {
+    } else if (lblPos == NULL) {
         // if label not found
-        if (eBuf->curCmd >= eBuf->maxCmd - 64) {
+        if (eBuf->curCmd >= eBuf->maxCmd - DELTA_CMDS) {
             eBuf->cmds = realloc(eBuf->cmds, eBuf->maxCmd * 2);
             eBuf->maxCmd *= 2;
         }
-        printf("cur: %d\n", eBuf->curCmd);
-        #define CMD_DEF(name, num, codeAsm, codeCpu) if (strncmp(name, cmd, strlen(name)) == 0) {printf("read: %s\n", name); codeAsm;}
+
+        int cmdLen = off - (cmd - line->buf);
+        #define CMD_DEF(name, num, codeAsm, codeCpu) \
+                if (cmdLen == strlen(name) && strncmp(name, cmd, (cmdLen < strlen(name)) ? (cmdLen) : (strlen(name))) == 0) {\
+                    /*printf("%d %s:\n", eBuf->curCmd, name);*/\
+                    *(eBuf->cmds + eBuf->curCmd) = num;\
+                    eBuf->curCmd += CMD_SZ;\
+                    codeAsm;\
+                }
     
         #include "cmds.h"
     }
-
+    
     // if there was no match in cmds.h, nor it was label
     eBuf->err = E_INV_CMD;
+    
     return 1;
 }
 
@@ -356,15 +359,8 @@ int CountLines(char* buf, int len) {
 
     int nLines = 0;
 
-    for (char* s = memchr(buf, '\n', len); s != NULL; s = memchr(s + 1, '\n', len - (s - buf))) {
-        /*
-        if (s == buf || *(s - 1) == '\n')
-            continue;
-        else
-            nLines++;
-        */
+    for (char* s = memchr(buf, '\n', len); s != NULL; s = memchr(s + 1, '\n', len - (s - buf))) 
         nLines++;
-    }
 
     if (buf[len - 1] != '\n' && buf[len - 1] != '\0')
         nLines++;
@@ -378,24 +374,6 @@ String* DivideByLines(char* buf, int len, int nLines) {
     String* matrix = (String*)calloc(nLines , sizeof(String));
     int i = 0;
 
-    /*
-    if (*(buf) != '\n') {
-        matrix[0].buf = buf;
-        i++;
-    }
-
-    for (char* s = memchr(buf, '\n', len); s != NULL; s = memchr(s + 1, '\n', len - (s - buf))) {
-
-        if (s != buf && *(s - 1) != '\n' && *(s - 1) != '\0')
-            matrix[i - 1].len = s - matrix[i - 1].buf + 1;
-
-        if (*(s + 1) != '\n' && *(s + 1) != '\0') {
-            matrix[i].buf = s + 1;
-            i++;
-        }
-    }
-    */
-
     matrix[0].buf = buf;
     i++;
 
@@ -408,15 +386,10 @@ String* DivideByLines(char* buf, int len, int nLines) {
 
         matrix[i].buf = s + 1;
         i++;
-        //printf("%d\n", i);
     }
 
     if (i == nLines)
-        matrix[i - 1].len = buf + len - matrix[i - 1].buf + 1;
-
-    for (int i = 0; i < nLines; i++) {
-        //printf(">%d\n", matrix[i].len);
-    }
+        matrix[i - 1].len = buf + len - matrix[i - 1].buf;
 
     return matrix;
 }
@@ -444,36 +417,27 @@ char* FindWord(String* str, int off, int* end) {
     assert(str);
 
     int start = 0;
-    for (start = 0; isalnum(*(str->buf + off + start)) == 0 && off + start != str->len; start++);
+    for (start = 0; isgraph(*(str->buf + off + start)) == 0 && off + start != str->len; start++);
     if (off + start == str->len)
         return NULL;
     
     char* word = str->buf + off + start;
 
-    *end = (char*)memchr(str->buf + off + start, ' ', str->len - off - start) - str->buf;
-    if (memchr(str->buf + off + start, ' ', str->len - off - start) == NULL)
+    if (memchr(str->buf + off + start, ' ', str->len - off - start) != NULL) {
+        *end = (char*)memchr(str->buf + off + start, ' ', str->len - off - start) - str->buf;
+    } else if ((char*)memchr(str->buf + off + start, '\n', str->len - off - start) != NULL) {
+        *end = (char*)memchr(str->buf + off + start, '\n', str->len - off - start) - str->buf;
+    } else {
         *end = str->len;
-    
-    return word;
-}
-
-int IsWhitespace(String* str, int off) {
-    int flag = 1;
-
-    for (int i = 0; i < str->len - off; i++) {
-        if (isspace((str->buf)[off + i]) == 0) {
-            flag = 0;
-            break;
-        }
     }
 
-    return flag;
+    return word;
 }
 
 char GetArgType(char* arg, int len) {
     int off = 0;
     
-    while (isdigit(*(arg + off)) != 0 || *(arg + off) == '.')
+    while (isdigit(*(arg + off)) != 0 || *(arg + off) == '.' ||*(arg + off) == '-' || *(arg + off) == '+')
         off++;
 
     if (off == len)
@@ -482,4 +446,57 @@ char GetArgType(char* arg, int len) {
     else
         // argument is alphabetic
         return 'r';
+}
+
+int _FindLabel(ExecBuf* eBuf, String* line, char* lblPtr, int off) {
+    int lblNum = 0;
+
+    for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
+        int minLen = 0;
+        int eq = 0;
+
+        if (eBuf->lbls[lblNum].name != NULL) {
+            int lblLen = strlen(eBuf->lbls[lblNum].name);
+            int argLen = off - (lblPtr - line->buf);
+            minLen = (lblLen < argLen) ? (lblLen) : (argLen);
+            eq = (lblLen == argLen) ? (1) : (0);
+        }
+        if (eBuf->lbls[lblNum].name && eq == 1 && strncmp(eBuf->lbls[lblNum].name, lblPtr, minLen) == 0) {
+            *(int*)(eBuf->cmds + eBuf->curCmd) = eBuf->lbls[lblNum].addr;
+            eBuf->curCmd += NUM_SZ;
+            break;
+        }
+    }
+
+    if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) != -1) {
+        *(int*)(eBuf->cmds + eBuf->curCmd) = -1;
+        eBuf->curCmd += NUM_SZ;   
+    } else if (lblNum == eBuf->maxLbl && *(int*)(eBuf->cmds + eBuf->curCmd) == -1) {
+        eBuf->err = E_UNDEC_LBL;
+        return 1;
+    }
+
+    return 0;
+}
+
+int EbufAddReg(ExecBuf* eBuf, char* arg) {
+    if (strncmp("ax", arg, 2) == 0) {
+        *(char*)(eBuf->cmds + eBuf->curCmd) = 'a';
+        eBuf->curCmd += REG_SZ;
+    } else if (strncmp("bx", arg, 2) == 0) {
+        *(char*)(eBuf->cmds + eBuf->curCmd) = 'b';
+        eBuf->curCmd += REG_SZ;
+    } else if (strncmp("cx", arg, 2) == 0) {
+        *(char*)(eBuf->cmds + eBuf->curCmd) = 'c';
+        eBuf->curCmd += REG_SZ;
+    } else if (strncmp("dx", arg, 2) == 0) {
+        *(char*)(eBuf->cmds + eBuf->curCmd) = 'd';
+        eBuf->curCmd += REG_SZ;
+    } else if (strncmp("ex", arg, 2) == 0) {
+        *(char*)(eBuf->cmds + eBuf->curCmd) = 'e';
+        eBuf->curCmd += REG_SZ;
+    } else {
+        eBuf->err = E_INV_ARG;
+        return 1;
+    }
 }

@@ -26,6 +26,7 @@ enum _MemoryErrs {
     E_INIT_ERR,
     E_RET_WITHOUT_CALL,
     E_INV_INPUT,
+    E_NO_END_SEQ,
 };
 typedef enum _MemoryErrs MemErrs;
 
@@ -36,7 +37,8 @@ const char* MemErrsDesc[] = {
     "invalid argument in stack for this operation!\n",
     "unable to initialize memory for execution!\n",
     "return read, but no call was made!\n",
-    "invalid input given!\n"
+    "invalid input given!\n",
+    "no end sequence given!\n",
 };
 
 struct _Memory {
@@ -66,23 +68,6 @@ int main(int argc, char** argv) {
         printf("error while executing %s ! %s\n", argv[1], MemErrsDesc[res]);
         exit(res);
     }
-
-    /*
-    Stack_t* st = StackAlloc();
-    STACK_INIT(st, 10);
-    
-    for (int i = 0; i < 10; i++) {
-        printf("pushing %d...\n", i);
-        StackPush(st, i);
-    }
-
-    for (int i = 0; i < 11; i++) {
-        printf("popping %d...\n", StackPeek(st));
-        StackPop(st);
-    }
-
-    StackFree(st);
-    */
 
     return 0;
 }
@@ -144,14 +129,11 @@ int Interpret(char* name) {
     read(fd, mem->cmds, len);
     close(fd);
     
-    while (mem->curCmd < mem->maxCmd && mem->err == 0) {
-        printf(">>%d\n", mem->ret->cur);
-        printf("%d, %d, %d, %d, %d\n", mem->regs[0], mem->regs[1], mem->regs[2], mem->regs[3], mem->regs[4]);
-
+    while (mem->err == 0) {
         switch (mem->cmds[mem->curCmd]) {
         #define CMD_DEF(name, num, codeAsm, codeBin)\
         case num:\
-            printf("read %s at addr: %d\n", name, mem->curCmd);\
+            /*printf("%d %s:\n", mem->curCmd, name);*/\
             mem->curCmd += CMD_SZ;\
             codeBin;\
             break;
@@ -159,6 +141,11 @@ int Interpret(char* name) {
         
         default:
             mem->err = E_CORRUPTED_BIN;
+            return mem->err;
+        }
+
+        if (mem->curCmd >= mem->maxCmd) {
+            mem->err = E_NO_END_SEQ;
             return mem->err;
         }
 

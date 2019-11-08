@@ -1,26 +1,46 @@
-push 55.5
+push 10;
+;
+push 5
 
-jmp ghgh
-ghgh:
+;end
 
-push 4 ; huinya    azaz;;;;;;;;;;;hhhh;
- 
-dec ax
-call kal
-dec ax
+mov ex 1 
+push ex
+out
 
-push 8
+mov dx 3
+push dx
+out
+
+
+alert hui sosat'
+
+push 1
+push 2
+
+jg label_2;
+
+jl label_1;
 
 out
 
-end
-kal:
-push ax
-push ax
-ret
-push ax
-push ax
-push ax
-mul ; ggg
+label3:
 
+LaBel:
 
+push:
+l:
+b:
+G:
+
+label_2:
+ add
+ jmp end
+
+label_1:
+ mul
+ jmp end
+
+end:
+ out
+ end
