@@ -52,6 +52,17 @@ CMD_DEF("push", 'a',
                 mem->err = E_CORRUPTED_BIN;
                 return mem->err;
             }
+        },
+        {
+            if (buf[cur] == 'n') {
+                cur += ARGTYPE_SZ;
+                dprintf(fdOut, "%d", *(int*)(buf + cur));
+                cur += NUM_SZ;
+            } else if (buf[cur] == 'r') {
+                cur += ARGTYPE_SZ;
+                dprintf(fdOut, "%cx", buf[cur]);
+                cur += REG_SZ;
+            }
         })
 
 // if called with no arguments, pops last value stored in stack, if register is given as an argument, value is stored in it
@@ -91,6 +102,10 @@ CMD_DEF("pop",  'b',
             
             StackPop(mem->stk);
             mem->curCmd += REG_SZ;
+        }, 
+        {
+            dprintf(fdOut, "%cx", buf[cur]);
+            cur += REG_SZ;
         })
 
 // indicates function call
@@ -126,6 +141,10 @@ CMD_DEF("call", 'd',
             mem->curCmd += NUM_SZ;
             StackPush(mem->ret, mem->curCmd);
             mem->curCmd = *(int*)(mem->cmds + mem->curCmd - NUM_SZ);
+        },
+        {
+            dprintf(fdOut, "%d", *(int*)(buf + cur));
+            cur += NUM_SZ;
         })
 
 // indicates end of the function declaration
@@ -143,6 +162,9 @@ CMD_DEF("ret",  'e',
 
             mem->curCmd = StackPeek(mem->ret);
             StackPop(mem->ret);
+        },
+        {
+            //
         })
 
 // decreases value, stored in register
@@ -174,6 +196,10 @@ CMD_DEF("dec",  'f',
             }
 
             mem->curCmd += REG_SZ;
+        },
+        {
+            dprintf(fdOut, "%cx", buf[cur]);
+            cur += REG_SZ;
         })
 
 // increases value, stored in register
@@ -205,6 +231,10 @@ CMD_DEF("inc",  'g',
             }
             
             mem->curCmd += REG_SZ;
+        },
+        {
+            dprintf(fdOut, "%cx", buf[cur]);
+            cur += REG_SZ;
         })
 
 // reads number from keyboard
@@ -223,6 +253,9 @@ CMD_DEF("in",   'h',
             }
 
             StackPush(mem->stk, (int)(input * PRECISION));
+        },
+        {
+            //
         })
 
 // prints top element of stack
@@ -237,6 +270,9 @@ CMD_DEF("out",  'i',
                 printf("stack is empty right now\n");
             else
                 printf("%lf\n", (double)(StackPeek(mem->stk)) / PRECISION);
+        },
+        {
+            //
         })
 
 // mov dest src
@@ -301,6 +337,20 @@ CMD_DEF("mov", 'z',
                 mem->err = E_CORRUPTED_BIN;
                 return mem->err;
             }
+        },
+        {
+            dprintf(fdOut, "%cx", buf[cur]);
+            cur += REG_SZ;
+
+            if (buf[cur] == 'n') {
+                cur += ARGTYPE_SZ;
+                dprintf(fdOut, "%d", *(int*)(buf + cur));
+                cur += NUM_SZ;
+            } else if (buf[cur] == 'r') {
+                cur += ARGTYPE_SZ;
+                dprintf(fdOut, "%cx", buf[cur]);
+                cur += REG_SZ;
+            }  
         })
 
 // jumps to given label
@@ -319,6 +369,10 @@ CMD_DEF("jmp", 'j',
         }, 
         {
             mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
+        },
+        {
+            dprintf(fdOut, "%d", *(int*)(buf + cur));
+            cur += NUM_SZ;
         })
 
 // jumps to given label if last stack element is zero
@@ -345,6 +399,10 @@ CMD_DEF("jz",   'k',
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
             else 
                 mem->curCmd += NUM_SZ;
+        },
+        {
+            dprintf(fdOut, "%d", *(int*)(buf + cur));
+            cur += NUM_SZ;
         })
 
 // jumps to given label if last two elements of stack are equal
@@ -376,6 +434,10 @@ CMD_DEF("je",   'l',
                 mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);
+        },
+        {
+            dprintf(fdOut, "%d", *(int*)(buf + cur));
+            cur += NUM_SZ;
         })
 
 // jumps to given label if last stack element is non-zero
@@ -402,6 +464,10 @@ CMD_DEF("jnz",  'm',
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
             else
                 mem->curCmd += NUM_SZ;
+        },
+        {
+            dprintf(fdOut, "%d", *(int*)(buf + cur));
+            cur += NUM_SZ;
         })
 
 // jumps to given label if last two eleents of stack are not equal
@@ -433,6 +499,10 @@ CMD_DEF("jne",  'n',
                 mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);
+        },
+        {
+            dprintf(fdOut, "%d", *(int*)(buf + cur));
+            cur += NUM_SZ;
         })
 
 // jumps to given label if last element of stack is greater than prior
@@ -466,6 +536,10 @@ CMD_DEF("jg",   'o',
                 mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);
+        },
+        {
+            dprintf(fdOut, "%d", *(int*)(buf + cur));
+            cur += NUM_SZ;
         })
 
 // jumps to given label if last element of stack is lesser than prior
@@ -497,6 +571,10 @@ CMD_DEF("jl",   'p',
                 mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);
+        },
+        {
+            dprintf(fdOut, "%d", *(int*)(buf + cur));
+            cur += NUM_SZ;
         })
 
 // jumps to given label if last element of stack is qreater or equal than prior
@@ -528,6 +606,10 @@ CMD_DEF("jge",  'q',
                 mem->curCmd += NUM_SZ;
             
             StackPush(mem->stk, tmp1);
+        },
+        {
+            dprintf(fdOut, "%d", *(int*)(buf + cur));
+            cur += NUM_SZ;
         })
 
 // jumps to given label if last element of stack is lesser or equal than prior
@@ -557,7 +639,12 @@ CMD_DEF("jle",  'r',
             else 
                 mem->curCmd += NUM_SZ;
             
-            StackPush(mem->stk, tmp1);})
+            StackPush(mem->stk, tmp1);
+        },
+        {
+            dprintf(fdOut, "%d", *(int*)(buf + cur));
+            cur += NUM_SZ;
+        })
 
 // adds last stack element to prior
 CMD_DEF("add",  's', 
@@ -578,6 +665,9 @@ CMD_DEF("add",  's',
             StackPop(mem->stk);
             
             StackPush(mem->stk, tmp1 + tmp2);
+        },
+        {
+            //
         })
 
 // substracts last stack element from prior
@@ -599,6 +689,9 @@ CMD_DEF("sub",  't',
             StackPop(mem->stk);
             
             StackPush(mem->stk, tmp1 - tmp2);
+        },
+        {
+            //
         })
 
 // multiplicates last stack element to prior
@@ -620,6 +713,9 @@ CMD_DEF("mul",  'u',
             StackPop(mem->stk);
 
             StackPush(mem->stk, (int)(tmp1 * tmp2 * PRECISION));
+        },
+        {
+            //
         })
 
 // divides last stack element by prior
@@ -641,6 +737,9 @@ CMD_DEF("div",  'v',
             StackPop(mem->stk);
 
             StackPush(mem->stk, (int)((tmp1 / tmp2) * PRECISION));
+        },
+        {
+            //
         })
 
 // gets square root from last stack element
@@ -665,6 +764,9 @@ CMD_DEF("sqrt",  'w',
             StackPop(mem->stk);
             
             StackPush(mem->stk, (int)(sqrt(tmp1) * PRECISION));
+        },
+        {
+            //
         })
 
 // indicates end of the program
@@ -676,6 +778,9 @@ CMD_DEF("end",  'x',
         }, 
         {
             return 0;
+        },
+        {
+            //
         })
 
 CMD_DEF("alert", 'y',
@@ -705,6 +810,13 @@ CMD_DEF("alert", 'y',
             fwrite(mem->cmds + mem->curCmd, sizeof(char), len, stdout);
             printf("\n");
             mem->curCmd += len;
+        },
+        {
+            int len = *(int*)(buf + cur);
+            cur += NUM_SZ;
+
+            write(fdOut, buf + cur, len);
+            cur += len;
         })
 
 

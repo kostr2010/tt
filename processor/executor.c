@@ -1,3 +1,7 @@
+// executes .bin file, created by assembler
+
+//####################//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -58,11 +62,16 @@ Memory* MemoryAlloc();
 int MemoryInit(Memory* mem, int sz);
 int MemoryFree(Memory* mem);
 
-int Interpret(char* name);
+int Interpret(const char* name);
 
 //####################//
 
 int main(int argc, char** argv) {
+    if (argv[1] == NULL) {
+        printf("no input file given!\n");
+        exit(-1);
+    }
+
     int res = Interpret(argv[1]);
     if (res != 0) {
         printf("error while executing %s ! %s\n", argv[1], MemErrsDesc[res]);
@@ -115,7 +124,7 @@ int MemoryFree(Memory* mem) {
     return 0;
 }
 
-int Interpret(char* name) {
+int Interpret(const char* name) {
     int fd = open(name, O_RDONLY);
     int len = lseek(fd, 0, SEEK_END);
     lseek(fd, 0, SEEK_SET);
@@ -131,7 +140,7 @@ int Interpret(char* name) {
     
     while (mem->err == 0) {
         switch (mem->cmds[mem->curCmd]) {
-        #define CMD_DEF(name, num, codeAsm, codeBin)\
+        #define CMD_DEF(name, num, codeAsm, codeBin, codeDisasm)\
         case num:\
             /*printf("%d %s:\n", mem->curCmd, name);*/\
             mem->curCmd += CMD_SZ;\

@@ -25,7 +25,7 @@ const int EXECBUF_INIT_LBLS_SZ = 10;
 //####################//
 
 // compilation errors
-enum _AssemblerErrs {
+const enum _AssemblerErrs {
     OK,
     E_INV_LBL_NAME,
     E_INV_ARG_TYPE,
@@ -127,17 +127,27 @@ int ExecBufInit(ExecBuf* eBuf);
  */
 int ExecBufFree(ExecBuf* eBuf);
 
-int Compile(char* in, ExecBuf* eBuf);
-String* CodeRead(char* name);
+int Compile(const char* in, ExecBuf* eBuf);
+String* CodeRead(const char* name);
 int LineInterpret(String* line, ExecBuf* eBuf);
 
-char GetArgType(char* arg, int len);
+char GetArgType(const char* arg,const int len);
 int _FindLabel(ExecBuf* eBuf, String* line, char* lblPtr, int off);
 int EbufAddReg(ExecBuf* eBuf, char* arg);
 
 //####################//
 
 int main(int argc , char *argv[]) {
+    if (argv[1] == NULL) {
+        printf("no input file given!\n");
+        exit(-1);
+    }
+
+    if (argv[2] == NULL) {
+        printf("no output file given!\n");
+        exit(-1);
+    }
+
     ExecBuf* eBuf = ExecBufAlloc();
     if (ExecBufInit(eBuf) != 0) {
         printf("unable to initialize translation buffer!\n");
@@ -246,7 +256,7 @@ int ExecBufFree(ExecBuf* eBuf) {
     return 0;
 }
 
-int Compile(char* inName, ExecBuf* eBuf) {
+int Compile(const char* inName, ExecBuf* eBuf) {
     assert(inName);
     assert(eBuf);
 
@@ -276,7 +286,7 @@ int Compile(char* inName, ExecBuf* eBuf) {
     return 0;
 }
 
-String* CodeRead(char* name) {
+String* CodeRead(const char* name) {
     assert(name);
 
     String* code = StringAlloc();
@@ -347,7 +357,7 @@ int LineInterpret(String* line, ExecBuf* eBuf) {
         }
 
         int cmdLen = off - (cmd - line->buf);
-        #define CMD_DEF(name, num, codeAsm, codeCpu) \
+        #define CMD_DEF(name, num, codeAsm, codeCpu, codeDisasm) \
                 if (cmdLen == strlen(name) && strncmp(name, cmd, (cmdLen < strlen(name)) ? (cmdLen) : (strlen(name))) == 0) {\
                     /*printf("%d %s:\n", eBuf->curCmd, name);*/\
                     *(eBuf->cmds + eBuf->curCmd) = num;\
@@ -364,7 +374,7 @@ int LineInterpret(String* line, ExecBuf* eBuf) {
     return 1;
 }
 
-char GetArgType(char* arg, int len) {
+char GetArgType( const char* arg, int len) {
     int off = 0;
     
     while (isdigit(*(arg + off)) != 0 || *(arg + off) == '.' ||*(arg + off) == '-' || *(arg + off) == '+')
