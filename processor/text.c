@@ -23,9 +23,9 @@ int StringInit(String* str, int len) {
 
 int StringFree(String* str) {
     assert(str);
-    assert(str->buf);
 
-    free(str->buf);
+    if (str->buf != NULL)
+        free(str->buf);
     free(str);
 
     return 0;

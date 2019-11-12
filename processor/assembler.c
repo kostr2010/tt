@@ -208,9 +208,9 @@ int LabelInit(Label* lbl, int len) {
 
 int LabelFree(Label* lbl) {
     assert(lbl);
-    assert(lbl->name);
 
-    free(lbl->name);
+    if (lbl->name != NULL)
+        free(lbl->name);
     free(lbl);
 
     return 0;
@@ -245,12 +245,15 @@ int ExecBufFree(ExecBuf* eBuf) {
     assert(eBuf->cmds);
     assert(eBuf->lbls);
 
-    free(eBuf->cmds);
+    if (eBuf->cmds != NULL && eBuf->lbls != NULL) {
+        free(eBuf->cmds);
+    
+        for (int i = 0; i < eBuf->curLbl; i++)
+            LabelFree(&((eBuf->lbls)[i]));
+    
+        free(eBuf->lbls);
+        }
 
-    for (int i = 0; i < eBuf->curLbl; i++)
-        LabelFree(&((eBuf->lbls)[i]));
-
-    free(eBuf->lbls);
     free(eBuf);
 
     return 0;
