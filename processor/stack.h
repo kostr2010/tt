@@ -3,12 +3,6 @@
 
 //####################//
 
-#include <string.h>
-#include <stdlib.h>
-#include <assert.h>
-
-//####################//
-
 #define STACK_INIT(stack, max) _StackConstruct(stack, #stack, max)                          // macros for Stack_t constructor.
 #define STACK_VERIFY(stack) if (_StackOK(stack) != 0) {_StackDump(stack); assert(!"ok");}   // macros for stack verification.
 

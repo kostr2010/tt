@@ -1,3 +1,8 @@
+// Translates .asm file to .bin file, executable of the .asm program
+// List of avaliable commands can be found in cmds.h file
+
+//####################//
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -9,6 +14,7 @@
 #include <ctype.h>
 
 #include "consts.h"
+#include "text.h"
 
 //####################//
 
@@ -49,52 +55,82 @@ const char* AsmErrsDesc[] = {
     //"no end sequence given!\n",     
 };
 
-struct _String {
-    char*   buf;
-    int     len;
-};
-typedef struct _String String;
-
+// label structure
 struct _Label {
-    char*   name;
-    int     addr;
+    char*   name;   // label name
+    int     addr;   // index in commads buffer label point to
 };
 typedef struct _Label Label;
 
+// buffer of data, needed for executor
 struct _ExecBuf {
-    char*   cmds;
-    int     maxCmd;
-    int     curCmd;
-    Label*  lbls;
-    int     maxLbl;
-    int     curLbl;
-    AsmErrs err;
+    char*   cmds;   // pointer to the beginning of commands buffer
+    int     maxCmd; // commands buffer maximum size
+    int     curCmd; // command buffer current load
+    Label*  lbls;   // pointer to the beginning of labels buffer
+    int     maxLbl; // labels buffer maximum size
+    int     curLbl; // labels buffer current load
+    AsmErrs err;    // error number
 };
 typedef struct _ExecBuf ExecBuf;
 
 //####################//
 
-String* StringAlloc();
-int StringInit(String* str, int len);
-int StringFree(String* str);
-
+/**
+ * @brief allocates memory to Label structure.
+ * 
+ * @return String* str  - pointer to allocated memory block.
+ */
 Label* LabelAlloc();
+/**
+ * @brief initializes Label type structure. memory should be previously allocated via LabelAlloc().
+ * 
+ * 
+ * @param Label* lbl    - pointer to the structure;
+ * @param int len       - length of the label's name.
+ * 
+ * @return int res      - if 0, initialized successfully, if 1 - error occured. 
+ */
 int LabelInit(Label* lbl, int len);
+/**
+ * @brief deallocates memory, allocated for Label structure.
+ * 
+ * @param String* str   - pointer to the structure.
+ * 
+ * @return int res      - if 0, freed successfully, if 1 - error occured.
+ * 
+ */
 int LabelFree(Label* lbl);
 
+/**
+ * @brief allocates memory to ExecBuf structure.
+ * 
+ * @return ExecBuf* eBuf  - pointer to allocated memory block.
+ */
 ExecBuf* ExecBufAlloc();
+/**
+ * @brief initializes ExecBuf type structure. memory should be previously allocated via ExecBufAlloc().
+ * 
+ * 
+ * @param ExecBuf* eBuf - pointer to the structure;
+ * 
+ * @return int res      - if 0, initialized successfully, if 1 - error occured. 
+ */
 int ExecBufInit(ExecBuf* eBuf);
+/**
+ * @brief deallocates memory, allocated for ExecBuf structure.
+ * 
+ * @param String* str   - pointer to the structure.
+ * 
+ * @return int res      - if 0, freed successfully, if 1 - error occured.
+ * 
+ */
 int ExecBufFree(ExecBuf* eBuf);
 
 int Compile(char* in, ExecBuf* eBuf);
 String* CodeRead(char* name);
 int LineInterpret(String* line, ExecBuf* eBuf);
 
-int CountLines(char* buf, int len);
-String* DivideByLines(char* buf, int len, int nLines);
-char* FindAndReplace(char* buf, int len, char old, char new);
-char* FindWord(String* str, int off, int* end);
-int IsWhitespace(String* str, int off);
 char GetArgType(char* arg, int len);
 int _FindLabel(ExecBuf* eBuf, String* line, char* lblPtr, int off);
 int EbufAddReg(ExecBuf* eBuf, char* arg);
@@ -122,7 +158,7 @@ int main(int argc , char *argv[]) {
         exit(res);
     }
 
-    printf("occupied %d~(bytes) to store commands, %d~(bytes) to store labels\n\n", eBuf->maxCmd, eBuf->maxLbl * sizeof(Label));
+    printf("occupied %d~(bytes) to store commands, %ld~(bytes) to store labels\n\n", eBuf->maxCmd, eBuf->maxLbl * sizeof(Label));
 
     int fd = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fd == -1) {
@@ -144,31 +180,6 @@ int main(int argc , char *argv[]) {
 }
 
 //####################//
-
-String* StringAlloc() {
-    String* str = calloc(1, sizeof(String));
-
-    return str;
-}
-
-int StringInit(String* str, int len) {
-    assert(str);
-
-    str->buf = calloc(len, sizeof(char));
-    str->len = len;
-
-    return 0;
-}
-
-int StringFree(String* str) {
-    assert(str);
-    assert(str->buf);
-
-    free(str->buf);
-    free(str);
-
-    return 0;
-}
 
 Label* LabelAlloc() {
     Label* lbl = calloc(1, sizeof(Label));
@@ -353,87 +364,6 @@ int LineInterpret(String* line, ExecBuf* eBuf) {
     return 1;
 }
 
-int CountLines(char* buf, int len) {
-    assert(len >= 0);
-    assert(buf);
-
-    int nLines = 0;
-
-    for (char* s = memchr(buf, '\n', len); s != NULL; s = memchr(s + 1, '\n', len - (s - buf))) 
-        nLines++;
-
-    if (buf[len - 1] != '\n' && buf[len - 1] != '\0')
-        nLines++;
-
-    return nLines;
-}
-
-String* DivideByLines(char* buf, int len, int nLines) {
-    assert(buf);
-
-    String* matrix = (String*)calloc(nLines , sizeof(String));
-    int i = 0;
-
-    matrix[0].buf = buf;
-    i++;
-
-    for (char* s = memchr(buf, '\n', len); s != NULL; s = memchr(s + 1, '\n', len - (s - buf))) {
-        if (*(s - 1) == '\n') {
-            matrix[i - 1].len = 0;
-        } else {
-            matrix[i - 1].len = s - matrix[i - 1].buf;
-        }
-
-        matrix[i].buf = s + 1;
-        i++;
-    }
-
-    if (i == nLines)
-        matrix[i - 1].len = buf + len - matrix[i - 1].buf;
-
-    return matrix;
-}
-
-char* FindAndReplace(char* buf, int len, char old, char new) {
-    assert(buf);
-
-    char* s = memchr(buf, old, len);
-    if (s != NULL)
-        *s = new;
-
-    return s;
-}
-
-void FindAndReplaceAll(char* buf, int len, char old, char new) {
-    assert(buf);
-
-    char* s = FindAndReplace(buf, len, old, new);
-
-    while(s != NULL)
-        s = FindAndReplace(s + 1, buf + len - s - 1, old, new);
-}
-
-char* FindWord(String* str, int off, int* end) {
-    assert(str);
-
-    int start = 0;
-    for (start = 0; isgraph(*(str->buf + off + start)) == 0 && off + start != str->len; start++);
-    if (off + start == str->len)
-        return NULL;
-    
-    char* word = str->buf + off + start;
-
-    if (memchr(str->buf + off + start, ' ', str->len - off - start) != NULL) {
-        *end = (char*)memchr(str->buf + off + start, ' ', str->len - off - start) - str->buf;
-    } else if ((char*)memchr(str->buf + off + start, '\n', str->len - off - start) != NULL) {
-        *end = (char*)memchr(str->buf + off + start, '\n', str->len - off - start) - str->buf;
-    } else {
-        *end = str->len;
-    }
-
-    return word;
-}
-
 char GetArgType(char* arg, int len) {
     int off = 0;
     
@@ -499,4 +429,6 @@ int EbufAddReg(ExecBuf* eBuf, char* arg) {
         eBuf->err = E_INV_ARG;
         return 1;
     }
+
+    return 0;
 }
