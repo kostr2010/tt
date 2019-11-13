@@ -71,16 +71,14 @@ int Disasm(const char* nameIn, const char* nameOut) {
         exit(-1);
     }
 
-    char* cmdName = NULL;
     int cur = 0, cmdNum = 0;
     while (buf[cur] != '\0') {
         switch (buf[cur]) {
         #define CMD_DEF(name, num, codeAsm, codeBin, codeDisasm)\
         case num:\
-            cmdName = name;\
             cmdNum = cur;\
             cur += CMD_SZ;\
-            dprintf(fdOut, "%s ", cmdName);\
+            dprintf(fdOut, "%s ", name);\
             codeDisasm;\
             dprintf(fdOut, "; [%d]\n", cmdNum);\
             break;
