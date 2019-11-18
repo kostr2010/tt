@@ -91,7 +91,7 @@ Label* LabelAlloc();
  * 
  * @return int res      - if 0, initialized successfully, if 1 - error occured. 
  */
-int LabelInit(Label* lbl, int len);
+int LabelInit(Label* lbl, const int len);
 /**
  * @brief deallocates memory, allocated for Label structure.
  * 
@@ -133,7 +133,7 @@ int LineInterpret(String* line, ExecBuf* eBuf);
 
 char GetArgType(const char* arg,const int len);
 int _FindLabel(ExecBuf* eBuf, String* line, char* lblPtr, int off);
-int EbufAddReg(ExecBuf* eBuf, char* arg);
+int EbufAddReg(ExecBuf* eBuf, const char* arg);
 
 //####################//
 
@@ -197,7 +197,7 @@ Label* LabelAlloc() {
     return lbl;
 }
 
-int LabelInit(Label* lbl, int len) {
+int LabelInit(Label* lbl, const int len) {
     assert(lbl);
     
     lbl->name = calloc(len, sizeof(char));
@@ -423,7 +423,7 @@ int _FindLabel(ExecBuf* eBuf, String* line, char* lblPtr, int off) {
     return 0;
 }
 
-int EbufAddReg(ExecBuf* eBuf, char* arg) {
+int EbufAddReg(ExecBuf* eBuf, const char* arg) {
     if (strncmp("ax", arg, 2) == 0) {
         *(char*)(eBuf->cmds + eBuf->curCmd) = 'a';
         eBuf->curCmd += REG_SZ;

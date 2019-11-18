@@ -59,7 +59,7 @@ typedef struct _Memory Memory;
 //####################//
 
 Memory* MemoryAlloc();
-int MemoryInit(Memory* mem, int sz);
+int MemoryInit(Memory* mem, const int sz);
 int MemoryFree(Memory* mem);
 
 int Interpret(const char* name);
@@ -89,7 +89,7 @@ Memory* MemoryAlloc() {
     return mem;
 }
 
-int MemoryInit(Memory* mem, int sz) {
+int MemoryInit(Memory* mem, const int sz) {
     assert(mem);
     
     mem->cmds = calloc(sz, sizeof(char));
