@@ -1,8 +1,8 @@
-push 10;
-;
+push 10#
+#
 push 5
 
-;end
+#end
 
 mov ex 1 
 push ex
@@ -18,9 +18,9 @@ alert hui sosat'
 push 1
 push 2
 
-jg label_2;
+jg label_2#
 
-jl label_1;
+jl label_1#
 
 out
 

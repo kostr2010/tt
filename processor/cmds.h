@@ -455,12 +455,12 @@ CMD_DEF("jnz",  'm',
             return 0;
         }, 
         {
-            if (mem->stk->cur != 0) {
+            if (mem->stk->cur == 0) {
                 mem->err = E_FEW_ARGS_IN_STACK;
                 return mem->err;
             }
 
-            if (StackPeek(mem->stk) == 0)
+            if (StackPeek(mem->stk) != 0)
                 mem->curCmd = *(int*)(mem->cmds + mem->curCmd);
             else
                 mem->curCmd += NUM_SZ;
@@ -670,7 +670,7 @@ CMD_DEF("add",  's',
             //
         })
 
-// substracts last stack element from prior
+// substracts prior from  last stack element
 CMD_DEF("sub",  't', 
         {
             CHECK_EXTRA_ARGS;

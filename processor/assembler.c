@@ -168,7 +168,7 @@ int main(int argc , char *argv[]) {
         exit(res);
     }
 
-    printf("occupied %d~(bytes) to store commands, %ld~(bytes) to store labels\n\n", eBuf->maxCmd, eBuf->maxLbl * sizeof(Label));
+    printf("occupied %ld bytes in total:\n  >%d to store commands;\n  >%ld to store labels\n\n", eBuf->maxCmd + eBuf->maxLbl * sizeof(Label), eBuf->maxCmd, eBuf->maxLbl * sizeof(Label));
 
     int fd = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fd == -1) {
@@ -317,7 +317,7 @@ int LineInterpret(String* line, ExecBuf* eBuf) {
     assert(eBuf->lbls);
 
     // delete comments
-    if (FindAndReplace(line->buf, line->len, ';', '\0') != NULL)
+    if (FindAndReplace(line->buf, line->len, '#', '\0') != NULL)
         line->len = (char*)memchr(line->buf, '\0', line->len) - line->buf;
 
     // check if empty
@@ -333,7 +333,9 @@ int LineInterpret(String* line, ExecBuf* eBuf) {
 
     char* lblPos = memchr(line->buf, ':', line->len);
 
-    if (lblPos == cmd) {
+    char* spacePos = memchr(line->buf, ' ', line->len);
+
+    if (lblPos == cmd || (lblPos - spacePos > 0 && cmd - spacePos < 0)) {
         // if no label name was given
         eBuf->err = E_INV_LBL_NAME;
         
@@ -393,11 +395,10 @@ char GetArgType( const char* arg, int len) {
 
 int _FindLabel(ExecBuf* eBuf, String* line, char* lblPtr, int off) {
     int lblNum = 0;
-
     for (lblNum; lblNum < eBuf->maxLbl; lblNum++) {
         int minLen = 0;
         int eq = 0;
-
+        //printf("lblNum = %d, maxLbl = %d\n", lblNum, eBuf->maxLbl);
         if (eBuf->lbls[lblNum].name != NULL) {
             int lblLen = strlen(eBuf->lbls[lblNum].name);
             int argLen = off - (lblPtr - line->buf);
