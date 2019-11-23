@@ -16,7 +16,7 @@
 
 #ifdef SEC_ON
 const long CANARY = 0x1FEED5ADB16B00B5; // canary value.
-const int POISON = (data)(371);
+const int POISON = (data)(371);         // poison value
 #endif
 const int DELTA = 10;                   // delta from size/2 to shink the list
 

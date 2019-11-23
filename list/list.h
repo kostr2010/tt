@@ -45,8 +45,8 @@ struct _DLList {
     #endif
 
     data* data;         // data array
-    int dataMax;         // data array capacity
-    int dataCur;         // data array current load
+    int dataMax;        // data array capacity
+    int dataCur;        // data array current load
 
     int* next;          // sequence of physical addresses, indicates next element
     int* prev;          // sequence of physical addresses, indicates previous element
@@ -59,7 +59,7 @@ struct _DLList {
     int logFd;          // file descryptor for log file
     #endif
 
-    char isSorted;       // y/n
+    char isSorted;      // y/n
     #ifdef SEC_ON
     long hash;          // hash sum (for protecc)
     enum DLListErrs err;// error code

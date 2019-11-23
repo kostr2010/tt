@@ -1,4 +1,4 @@
-// if you're reading this code after nov-26-2019, 
+// if you're reading this code after nov-23-2019, 
 // only God knows how this code works,
 // because by now, only him and I know how it does.
 //
