@@ -1,8 +1,6 @@
 #ifndef LIST_H_INCLUDED
 #define LIST_H_INCLUDED
 
-#define SEC_ON
-#define LOG_ON
 #define DLLIST_INIT(list, size) DLListInit(list, #list, size)
 
 #ifdef SEC_ON
@@ -12,6 +10,8 @@
                                     printf("executed with errors! see dump file for details\n");\
                                     exit(-1);\
                                 }
+#else
+#define DLLIST_VERIFY(list) {}
 #endif
 
 //####################//
@@ -97,5 +97,6 @@ int DLListFind(DLList* list, const data dat);
 void DLListSort(DLList* list);
 
 char* GetTimestamp();
+void DLListVis(DLList* list, const char* name);
 
 #endif

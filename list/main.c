@@ -1,6 +1,22 @@
+// if you're reading this code after nov-26-2019, 
+// only God knows how this code works,
+// because by now, only him and I know how it does.
+//
+// if you are ever to try to optimize this code and it fails, 
+// (almost for sure) please, increase this counter as the warning
+// for the next one who'll dare to fix it in future.
+//
+// totalHumanHoursWasted = 73
+//
+
 #include <stdio.h>
 #include <unistd.h>
 
+#define SEC_ON
+#define LOG_ON
+
+#undef SEC_ON
+#undef LOG_ON
 
 #include "list.h"
 
@@ -25,6 +41,9 @@ int main() {
     DLListInsertR(lst, DLListGetTail(lst), 13);
     DLListInsertR(lst, DLListGetTail(lst), 12);
     DLListInsertL(lst, DLListGetHead(lst), 11);
+
+    DLListVis(lst, "dot1.dot");
+
     DLListInsertL(lst, DLListGetHead(lst), 40);
     DLListInsertL(lst, DLListGetHead(lst), 100);
     DLListInsertL(lst, DLListGetHead(lst), 45);
