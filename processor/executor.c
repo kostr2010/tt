@@ -147,6 +147,7 @@ int Interpret(const char* name) {
             codeBin;\
             break;
         #include "cmds.h"
+        #undef CMD_DEF(name, num, codeAsm, codeBin, codeDisasm)
         
         default:
             mem->err = E_CORRUPTED_BIN;

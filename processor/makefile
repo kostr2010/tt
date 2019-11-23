@@ -14,8 +14,3 @@ execute: stack.o executor.o stack.h cmds.h stack.h
 
 clear:
 	rm -rf stack.o executor.o text.o assembler.o disassembler.o
-
-
-
-
-

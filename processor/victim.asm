@@ -13,7 +13,7 @@ push dx
 out
 
 
-alert hui sosat'
+alert juy
 
 push 1
 push 2

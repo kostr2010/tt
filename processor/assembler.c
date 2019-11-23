@@ -326,7 +326,7 @@ int LineInterpret(String* line, ExecBuf* eBuf) {
 
     int off = 0;
     char* cmd = FindWord(line, off, &off);
-
+    
     // check if whitespace    
     if (cmd == NULL)
         return 0;
@@ -371,6 +371,7 @@ int LineInterpret(String* line, ExecBuf* eBuf) {
                 }
     
         #include "cmds.h"
+        #undef CMD_DEF(name, num, codeAsm, codeCpu, codeDisasm)
     }
     
     // if there was no match in cmds.h, nor it was label

@@ -75,6 +75,7 @@ int Disasm(const char* nameIn, const char* nameOut) {
             dprintf(fdOut, "; [%d]\n", cmdNum);\
             break;
         #include "cmds.h"
+        #undef CMD_DEF(name, num, codeAsm, codeBin, codeDisasm)
         
         default:
             printf("<%d %d>\n", cur, len);

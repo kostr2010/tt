@@ -46,7 +46,7 @@ CMD_DEF("push", 'a',
                 mem->curCmd += NUM_SZ;
             } else if (type == 'r') {
                 mem->curCmd += ARGTYPE_SZ;
-                StackPush(mem->stk, mem->regs[mem->cmds[mem->curCmd] - 97]);
+                StackPush(mem->stk, mem->regs[mem->cmds[mem->curCmd] - 'a']);
                 mem->curCmd += REG_SZ;
             } else {
                 mem->err = E_CORRUPTED_BIN;
@@ -97,7 +97,7 @@ CMD_DEF("pop",  'b',
             }
             
             if (mem->cmds[mem->curCmd] != 'e')
-                mem->regs[mem->cmds[mem->curCmd] - 97] = StackPeek(mem->stk);
+                mem->regs[mem->cmds[mem->curCmd] - 'a'] = StackPeek(mem->stk);
         
             
             StackPop(mem->stk);
@@ -190,9 +190,9 @@ CMD_DEF("dec",  'f',
         }, 
         {
             if (mem->cmds[mem->curCmd] != 'e') {
-                double tmp = (double)(mem->regs[mem->cmds[mem->curCmd] - 97]);
+                double tmp = (double)(mem->regs[mem->cmds[mem->curCmd] - 'a']);
                 tmp = ((tmp / PRECISION) - 1) * PRECISION;
-                mem->regs[mem->cmds[mem->curCmd] - 97] = (int)(tmp);
+                mem->regs[mem->cmds[mem->curCmd] - 'a'] = (int)(tmp);
             }
 
             mem->curCmd += REG_SZ;
@@ -225,9 +225,9 @@ CMD_DEF("inc",  'g',
         }, 
         {
             if (mem->cmds[mem->curCmd] != 'e') {
-                double tmp = (double)(mem->regs[mem->cmds[mem->curCmd] - 97]);
+                double tmp = (double)(mem->regs[mem->cmds[mem->curCmd] - 'a']);
                 tmp = ((tmp / PRECISION) + 1) * PRECISION;
-                mem->regs[mem->cmds[mem->curCmd] - 97] = (int)(tmp);
+                mem->regs[mem->cmds[mem->curCmd] - 'a'] = (int)(tmp);
             }
             
             mem->curCmd += REG_SZ;
@@ -316,7 +316,7 @@ CMD_DEF("mov", 'z',
             return 0;
         },
         {   
-            int reg = mem->cmds[mem->curCmd] - 97;
+            int reg = mem->cmds[mem->curCmd] - 'a';
 
             mem->curCmd += REG_SZ;
 
@@ -329,7 +329,7 @@ CMD_DEF("mov", 'z',
             } else if (type == 'n' && reg == 4) {
                 mem->curCmd += NUM_SZ;
             } else if (type == 'r' && reg != 4) {
-                mem->regs[reg] = mem->regs[mem->cmds[mem->curCmd] - 97];
+                mem->regs[reg] = mem->regs[mem->cmds[mem->curCmd] - 'a'];
                 mem->curCmd += REG_SZ;
             } else if (type == 'r' && reg == 4) {
                 mem->curCmd += REG_SZ;
@@ -832,4 +832,3 @@ CMD_DEF("jle",  'r',
         {})
 
 */
-
