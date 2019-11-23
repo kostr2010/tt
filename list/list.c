@@ -396,6 +396,9 @@ int DLListGetTail(DLList* list) {
 int DLListGetPhysAddr(DLList* list, const int addrLogical) {
     DLLIST_VERIFY(list);
 
+    if (list->isSorted == 'y')
+        return addrLogical;
+
     int addrPhysical = list->head;
 
     if (addrLogical >= list->dataMax) {
@@ -459,8 +462,8 @@ int DLListInsertL(DLList* list, const int addrPhysical, const data dat) {
     DLListUpdLog(list, "DLListInsertL");
     #endif
 
-    if (list->isSorted == 'n')
-        DLListSort(list);
+    //if (list->isSorted == 'n')
+    //    DLListSort(list);
 
     return addrIns;
 }
@@ -512,8 +515,8 @@ int DLListInsertR(DLList* list, const int addrPhysical, const data dat) {
     DLListUpdLog(list, "DLListInsertR");
     #endif
 
-    if (list->isSorted == 'n')
-        DLListSort(list);
+    //if (list->isSorted == 'n')
+    //    DLListSort(list);
 
     return addrIns;
 }
@@ -563,8 +566,8 @@ int DLListDelete(DLList* list, const int addrPhysical) {
     DLListUpdLog(list, "DLListDelete");
     #endif 
 
-    if (list->isSorted == 'n')
-        DLListSort(list);
+    //if (list->isSorted == 'n')
+    //    DLListSort(list);
 
     return 0;
 }
@@ -650,7 +653,7 @@ void DLListVis(DLList* list, const char* name) {
     DLLIST_VERIFY(list);
     assert(name);
 
-    DLListSort(list);
+    //DLListSort(list);
 
 	FILE* dot = fopen(name, "w");
 
