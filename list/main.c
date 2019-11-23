@@ -15,8 +15,8 @@
 #define SEC_ON
 #define LOG_ON
 
-#undef SEC_ON
-#undef LOG_ON
+#undef SEC_ON // un-undef for security measures, including dump
+#undef LOG_ON // un-undef for logging
 
 #include "list.h"
 

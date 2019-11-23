@@ -5,6 +5,7 @@
 
 #ifdef SEC_ON
 #define DLLIST_VERIFY(list) if (DLListVerify(list) != OK) {\
+                                    DLListVis(list, #list);\
                                     DLListDump(list, #list);\
                                     DLListFree(list);\
                                     printf("executed with errors! see dump file for details\n");\
