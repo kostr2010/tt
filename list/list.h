@@ -1,11 +1,14 @@
 #ifndef LIST_H_INCLUDED
 #define LIST_H_INCLUDED
 
+#define SEC_ON
+#define LOG_ON
+
 #define DLLIST_INIT(list, size) DLListInit(list, #list, size)
 
 #ifdef SEC_ON
 #define DLLIST_VERIFY(list) if (DLListVerify(list) != OK) {\
-                                    DLListVis(list, #list);\
+                                    /*DLListVis(list, #list);*/\
                                     DLListDump(list, #list);\
                                     DLListFree(list);\
                                     printf("executed with errors! see dump file for details\n");\
@@ -55,6 +58,8 @@ struct _DLList {
     int head;           // physical address of first element
     int tail;           // physical address of last element
 
+    enum DLListErrs err;// error code
+
     #ifdef LOG_ON
     int logFd;          // file descryptor for log file
     #endif
@@ -62,7 +67,6 @@ struct _DLList {
     char isSorted;      // y/n
     #ifdef SEC_ON
     long hash;          // hash sum (for protecc)
-    enum DLListErrs err;// error code
     long canary2;       // canary value (for protecc)
     #endif
 };

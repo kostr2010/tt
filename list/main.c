@@ -12,11 +12,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define SEC_ON
-#define LOG_ON
-
-#undef SEC_ON // un-undef for security measures, including dump
-#undef LOG_ON // un-undef for logging
+//#undef SEC_ON // un-undef for security measures, including dump
+//#undef LOG_ON // un-undef for logging
 
 #include "list.h"
 
@@ -314,14 +311,27 @@ int main() {
     DLListDelete(lst, DLListGetTail(lst));
     DLListDelete(lst, DLListGetHead(lst));
     DLListDelete(lst, DLListGetTail(lst));
-    DLListDelete(lst, DLListGetHead(lst));
-    DLListDelete(lst, DLListGetTail(lst));
-    DLListDelete(lst, DLListGetHead(lst));
-    DLListDelete(lst, DLListGetTail(lst));
-    DLListDelete(lst, DLListGetHead(lst));
-    DLListDelete(lst, DLListGetTail(lst));
+    DLListSort(lst);
     DLListDelete(lst, DLListGetHead(lst));
     DLListSort(lst);
+    DLListDelete(lst, DLListGetTail(lst));
+    DLListSort(lst);
+    DLListDelete(lst, DLListGetHead(lst));
+    DLListDelete(lst, DLListGetTail(lst));
+    DLListDelete(lst, DLListGetHead(lst));
+    DLListDelete(lst, DLListGetTail(lst));
+    DLListDelete(lst, DLListGetHead(lst));
+
+    DLListSort(lst);
+
+    DLListInsertL(lst, DLListGetHead(lst), 11);
+
+    DLListInsertL(lst, DLListGetHead(lst), 40);
+
+    DLListInsertL(lst, DLListGetHead(lst), 100);
+
+    DLListInsertL(lst, DLListGetHead(lst), 45);
+
     DLListFree(lst);
 
     return 0;

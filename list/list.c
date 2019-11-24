@@ -124,8 +124,8 @@ void DLListFree(DLList* list) {
 int DLListResize(DLList* list, const int sizeNew) {
     DLLIST_VERIFY(list);
     
-    if (sizeNew <= DELTA) {
-        printf("invalid new size!\n");
+    if (sizeNew < DELTA) {
+        printf("invalid new size! %d\n", sizeNew);
         return -1;
     } else if (sizeNew == list->dataMax) {
         printf("same size\n");
@@ -182,7 +182,7 @@ int DLListVerify(DLList* list) {
         list->err = E_LOG_DEAD;
         return E_LOG_DEAD;
     }
-    
+
     if (list->canary1 != CANARY) {
         list->err = E_CANARY1_DEAD;
         return E_CANARY1_DEAD;
@@ -191,7 +191,7 @@ int DLListVerify(DLList* list) {
         list->err = E_CANARY2_DEAD;
         return E_CANARY2_DEAD;
     }
-    
+
     if (list->hash != DLListGetHash(list)) {
         list->err = E_HASH_CORRUPTED;
         return E_HASH_CORRUPTED;
@@ -201,6 +201,7 @@ int DLListVerify(DLList* list) {
         list->err = E_LIST_UNDERFLOW;
         return E_LIST_UNDERFLOW;
     }
+
     if (list->dataCur >= list->dataMax) {
         list->err = E_LIST_OVERWLOW;
         return E_LIST_OVERWLOW;
@@ -217,12 +218,10 @@ int DLListVerify(DLList* list) {
         }
         elemCount++;
     }
-
     return OK;
 }
 
 int DLListGetHash(DLList* list) {
-    //DLLIST_VERIFY(list);
     assert(list);
     assert(list->data);
     assert(list->next);
@@ -236,22 +235,18 @@ int DLListGetHash(DLList* list) {
         prevHash += ((i + 1) * list->prev[i]) % POISON;
     }
 
-    int hash = (list->canary1 % POISON) * 1
-                + (list->canary2 % POISON) * 2
-                + (dataHash) * 3
-                + (nextHash) * 4
-                + (prevHash) * 5
-                + list->dataCur * 6
-                + list->dataMax * 7
-                + list->free * 8
-                + list->tail * 9
-                + list->head * 1
-                + list->logFd * 2
-                + list->err * 3
-                + list->isSorted * 4;
-
-    //DLLIST_VERIFY(list);
-    //DLListUpdLog(list, "DLListGetHash");
+    long hash = (list->canary1 % POISON) * 1
+                 + (list->canary2 % POISON) * 2
+                 + (dataHash) * 3
+                 + (nextHash) * 4
+                 + (prevHash) * 5
+                 + list->dataCur * 6
+                 + list->dataMax * 7
+                 + list->free * 8
+                 + list->tail * 9
+                 + list->head * 1
+                 + list->err * 3
+                 + list->isSorted * 4;
 
     return hash;
 }
@@ -283,7 +278,7 @@ void DLListDump(DLList* list, const char* name) {
                              timeStamp, list->canary1, CANARY, list->canary2, list->hash, list->dataMax, list->dataCur, list->head, list->tail, list->free, list->isSorted);
 
         for (int i = 0; i < list->dataMax; i++) {
-        if (list->prev[i] == 0 && i != list->head && i != list->tail)
+        if (list->prev[i] == 0 && (i != list->head && i != list->tail || list->dataCur == 0))
             dprintf(list->logFd, "[%3d ]", i);
         else 
             dprintf(list->logFd, "[%3d *]", i);
@@ -332,7 +327,7 @@ void DLListUpdLog(DLList* list, const char* func) {
     free(timeStamp);
 
     for (int i = 0; i < list->dataMax; i++) {
-        if (list->prev[i] == 0 && i != list->head && i != list->tail)
+        if (list->prev[i] == 0 && (i != list->head && i != list->tail || list->dataCur == 0))
             dprintf(list->logFd, "[%3d  ]", i);
         else 
             dprintf(list->logFd, "[%3d *]", i);
@@ -418,13 +413,11 @@ int DLListGetPhysAddr(DLList* list, const int addrLogical) {
 int DLListInsertL(DLList* list, const int addrPhysical, const data dat) {
     DLLIST_VERIFY(list);
 
-    if (list->dataCur >= list->dataMax - 2)
-        DLListResize(list, list->dataMax * 2);
-
     if (list->prev[addrPhysical] == 0 
         && (addrPhysical != list->head 
         && addrPhysical != list->tail)) {
-        printf("unappropriate address to insert!\n");
+        printf("unappropriate address to insert %d!\n", addrPhysical);
+        DLListUpdLog(list, "DLListInsertL, unappropriate address to insert!");
         return -1;
     }
 
@@ -456,11 +449,13 @@ int DLListInsertL(DLList* list, const int addrPhysical, const data dat) {
     #ifdef SEC_ON
     list->hash = DLListGetHash(list);
     #endif
-
     DLLIST_VERIFY(list);
     #ifdef LOG_ON
     DLListUpdLog(list, "DLListInsertL");
     #endif
+
+    if (list->dataCur >= list->dataMax - 2)
+        DLListResize(list, list->dataMax * 2);
 
     //if (list->isSorted == 'n')
     //    DLListSort(list);
@@ -471,13 +466,11 @@ int DLListInsertL(DLList* list, const int addrPhysical, const data dat) {
 int DLListInsertR(DLList* list, const int addrPhysical, const data dat) {
     DLLIST_VERIFY(list);
 
-    if (list->dataCur >= list->dataMax - 2)
-        DLListResize(list, list->dataMax * 2);
-
     if (list->prev[addrPhysical] == 0 
         && (addrPhysical != list->head 
         || addrPhysical != list->tail)) {
-        printf("unappropriate address to insert!\n");
+        printf("unappropriate address to insert %d!\n", addrPhysical);
+        DLListUpdLog(list, "DLListInsertR, unappropriate address to insert!");
         return -1;
     }
 
@@ -515,6 +508,9 @@ int DLListInsertR(DLList* list, const int addrPhysical, const data dat) {
     DLListUpdLog(list, "DLListInsertR");
     #endif
 
+    if (list->dataCur >= list->dataMax - 2)
+        DLListResize(list, list->dataMax * 2);
+
     //if (list->isSorted == 'n')
     //    DLListSort(list);
 
@@ -529,15 +525,13 @@ int DLListDelete(DLList* list, const int addrPhysical) {
         return -1;
     }
 
-    if (list->dataCur <= list->dataMax / 2 - DELTA)
-        DLListResize(list, list->dataMax / 2);
-
     if (list->prev[addrPhysical] == 0 
         && (addrPhysical != list->head 
         && addrPhysical != list->tail)) {
-        printf("unappropriate address to delete!\n");
+        printf("unappropriate address to delete %d %d!\n", addrPhysical, list->head);
+        DLListUpdLog(list, "DLListDelete, unappropriate address to delete!");
         return -1;
-    }
+    } 
 
     if (addrPhysical == list->head) {
         list->prev[list->next[addrPhysical]] = 0;
@@ -564,7 +558,10 @@ int DLListDelete(DLList* list, const int addrPhysical) {
     DLLIST_VERIFY(list);
     #ifdef LOG_ON
     DLListUpdLog(list, "DLListDelete");
-    #endif 
+    #endif
+
+    if (list->dataCur <= list->dataMax / 2 - DELTA)
+        DLListResize(list, list->dataMax / 2); 
 
     //if (list->isSorted == 'n')
     //    DLListSort(list);
@@ -592,9 +589,9 @@ int DLListFind(DLList* list, const data dat) {
 void DLListSort(DLList* list) {
     DLLIST_VERIFY(list);
 
-    if (list->isSorted == 'y' || list->dataCur <= 1) {
+    if (list->isSorted == 'y' || list->dataCur < 1) {
         #ifdef LOG_ON
-        DLListUpdLog(list, "DLListSort (size <= 1, list unchanged)");
+        DLListUpdLog(list, "DLListSort (size < 1, list unchanged)");
         #endif
         return;
     }
@@ -621,6 +618,7 @@ void DLListSort(DLList* list) {
     list->isSorted = 'y';
     list->head = 1;
     list->tail = list->dataCur;
+    list->free = list->next[list->tail];
     list->next[list->tail] = 0;
     list->prev[list->head] = 0;
 
@@ -650,7 +648,7 @@ char* GetTimestamp() {
 }
 
 void DLListVis(DLList* list, const char* name) {
-    DLLIST_VERIFY(list);
+    //DLLIST_VERIFY(list);
     assert(name);
 
     //DLListSort(list);
@@ -679,5 +677,5 @@ void DLListVis(DLList* list, const char* name) {
     system(pngName);
     free(pngName);
 
-    DLLIST_VERIFY(list);
+    //DLLIST_VERIFY(list);
 }
