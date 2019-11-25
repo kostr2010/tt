@@ -79,7 +79,7 @@ typedef struct _Tree Tree;
 //####################//
 
 Node* NodeAlloc();
-int NodeInit(Node* node, const int parent, const data value, const int rank);
+int NodeInit(Node* node, const int parent, const data value);
 void NodeFree(Node* node);
 
 Tree* TreeAlloc();
@@ -91,10 +91,12 @@ int _TreeSort(Tree* tree, const int node, const int parent, const int branch, in
 
 int TreeGetRoot(Tree* tree);
 int TreeGetFree(Tree* tree);
-int TreeFind(Tree* tree, data value);
+int TreeFind(Tree* tree, const int node, data value);
 
-int TreeAddNode(Tree* tree, const int addr, const int branch, const data value);
-int TreeDelete(Tree* tree, const int addr);
+int TreeAddNode(Tree* tree, const int node, const int branch, const data value);
+int TreeDeleteNode(Tree* tree, const int node);
+int _TreeDeleteNode(Tree* tree, const int node);
+int TreeChangeNode(Tree* tree, const int node, const data valueNew);
 
 char* GetTimestamp();
 

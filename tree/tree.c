@@ -34,7 +34,7 @@ Node* NodeAlloc() {
     return node;
 }
 
-int NodeInit(Node* node, const int parent, const data value, const  int rank) {
+int NodeInit(Node* node, const int parent, const data value) {
     assert(node);
 
     if (parent < 0)
@@ -169,6 +169,8 @@ int TreeResize(Tree* tree, const int sizeNew) {
             tree->memMap[i] = i + 1;
         tree->memMap[sizeNew - 1] = 0;
 
+        tree->free = tree->nodesMax;
+        
         tree->nodes = realloc(tree->nodes, sizeNew * sizeof(Node));
 
         tree->nodesMax = sizeNew;
@@ -246,12 +248,117 @@ int TreeGetFree(Tree* tree) {
     return tree->free;
 }
 
-int TreeFind(Tree* tree, const data value) {}
+int TreeFind(Tree* tree, const int node, const data value) {
+    TREE_VERIFY(tree);
+
+    if (tree->nodesCur == 0) {
+        printf("tree is empty!\n");
+        return -1;
+    }
+
+    if (node == 0)
+        return -1;
+    
+    if (tree->nodes[node].value == value)
+        return node;
+    
+    int res = -1;
+    for (int i = 0; i < tree->rank; i++) {
+        res = TreeFind(tree, (tree->nodes[node]).children[i], value);
+        if (res != -1)
+            return res;
+    }
+    
+    return -1;
+
+    TREE_VERIFY(tree);
+}
 
 
-int TreeAddNode(Tree* tree, const int addr, const int branch, const data value) {}
+int TreeAddNode(Tree* tree, const int node, const int branch, const data value) {
+    TREE_VERIFY(tree);
 
-int TreeDelete(Tree* tree, const int addr) {}
+    if (tree->nodesCur >= tree->nodesMax -1)
+        TreeResize(tree, tree->nodesMax * 2);
+        
+    if ((node == 0 || branch >= tree->rank) && tree->nodesCur != 0) {
+        printf("invalid address to insert!\n");
+
+        #ifdef LOG_ON
+        if (TreeUpdLog(tree, "TreeAddNode (0 insert address)") != 0)
+            tree->err = E_LOGFILE_DEAD;
+        #endif
+
+        return -1;
+    } else if ((tree->nodes[node]).children[branch] != 0) {
+        printf("branch is already occupied!\n");
+
+        #ifdef LOG_ON
+        if (TreeUpdLog(tree, "TreeAddNode (branch occupied)") != 0)
+            tree->err = E_LOGFILE_DEAD;
+        #endif
+
+        return -1;
+    } else if (tree->nodesCur == 0) {
+        tree->root = tree->free;
+    } else
+        (tree->nodes[node]).children[branch] = tree->free;
+
+    NodeInit(&(tree->nodes[tree->free]), node, value);
+    tree->free = tree->memMap[tree->free];
+    tree->nodesCur++;
+
+    TREE_VERIFY(tree);
+
+    #ifdef LOG_ON
+        if (TreeUpdLog(tree, "TreeAddNode") != 0)
+            tree->err = E_LOGFILE_DEAD;
+        #endif
+
+    return (tree->nodes[node]).children[branch];
+}
+
+int TreeDeleteNode(Tree* tree, const int node) {
+    TREE_VERIFY(tree);
+
+    if (node != 0) {
+        for (int i = 0; i < tree->rank; i++) {
+            _TreeDeleteNode(tree, (tree->nodes[node]).children[i]);
+            (tree->nodes[node]).children[i] = 0;
+        }
+        (tree->nodes[node]).parent = 0;
+        tree->nodesCur--;
+    }
+
+    if (tree->nodesCur < tree->nodesMax / 2 - DELTA)
+        TreeResize(tree, tree->nodesMax / 2);
+
+    TREE_VERIFY(tree);
+
+    #ifdef LOG_ON
+    if (TreeUpdLog(tree, "TreeDeleteNode") != 0)
+        tree->err = E_LOGFILE_DEAD;
+    #endif
+
+    return 0;
+}
+
+int _TreeDeleteNode(Tree* tree, const int node) {
+    if (node != 0) {
+        for (int i = 0; i < tree->rank; i++) {
+            _TreeDeleteNode(tree, (tree->nodes[node]).children[i]);
+            (tree->nodes[node]).children[i] = 0;
+        }
+        (tree->nodes[node]).parent = 0;
+        tree->nodesCur--;
+    }
+
+    return 0;
+}
+
+int TreeChangeNode(Tree* tree, const int node, const data valueNew){
+    return 0;
+}
 
 
 char* GetTimestamp() {
@@ -278,6 +385,8 @@ int TreeVerify(Tree* tree) {
     
     if (tree->err != OK)
         return tree->err;
+    
+    return OK;
 }
 
 void TreeDump(Tree* tree, const char* name) {
@@ -291,28 +400,20 @@ void TreeDump(Tree* tree, const char* name) {
     } else {
         char* timeStamp = GetTimestamp();
 
-        int res = 0;
-
-        res = dprintf(dumpFd, "%s\n"
-                                   "  hash: %ld\n"
-                                   "  tree capacity: %d\n"
-                                   "  tree size: %d\n"
-                                   "  first free element's physical address: %d\n"
-                                   "  root address: %d\n"
-                                   "  rank: %d\n"
-                                   "  error: %d %s\n",
-                                   timeStamp, tree->hash, tree->nodesMax, tree->nodesCur, tree->free, tree->root, tree->rank, tree->err, TreeErrsDesc[tree->err]);
+        dprintf(dumpFd, "%s\n"
+                        "  hash: %ld\n"
+                        "  tree capacity: %d\n"
+                        "  tree size: %d\n"
+                        "  first free element's physical address: %d\n"
+                        "  root address: %d\n"
+                        "  rank: %d\n"
+                        "  error: %d %s\n",
+                        timeStamp, tree->hash, tree->nodesMax, tree->nodesCur, tree->free, tree->root, tree->rank, tree->err, TreeErrsDesc[tree->err]);
         free(timeStamp);
 
-        if (res == 0)
-            return -1;
-        if (tree->nodes != NULL) {
-            for (int i = 0; i < tree->nodesMax; i++) {
-                res = dprintf(dumpFd, "  [%3d] (%3d [%3d, %3d, %3d] <%3d>)\n", i, tree->nodes[i].value, tree->nodes[i].children[0], tree->nodes[i].children[1], tree->nodes[i].children[2], tree->nodes[i].parent);
-                if (res == 0)
-                    return -1;
-            }
-        }
+        if (tree->nodes != NULL)
+            for (int i = 0; i < tree->nodesMax; i++)
+                dprintf(dumpFd, "  [%3d] (%3d [%3d, %3d, %3d] <%3d>)\n", i, tree->nodes[i].value, tree->nodes[i].children[0], tree->nodes[i].children[1], tree->nodes[i].children[2], tree->nodes[i].parent);
     }
 
     close(dumpFd);
