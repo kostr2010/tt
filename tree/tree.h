@@ -8,13 +8,23 @@
 
 #define TREE_INIT(tree, rank)    TreeInit(tree, #tree, rank)
 
+#ifdef SEC_ON
 #define TREE_VERIFY(tree)   if (TreeVerify(tree) != OK) {\
-                                TreeDump(tree);\
+                                TreeDump(tree, #tree);\
                                 printf("executed with errors! see dump file for details\n");\
                                 exit(-1);\
                             }
+#else
+#define DLLIST_VERIFY(list) {}
+#endif
 
 //####################//
+
+enum Children {
+    left,
+    mid,
+    right,
+};
 
 enum TreeErrs {
     OK,
@@ -40,14 +50,14 @@ typedef int data;
 // tree's node structure
 struct _Node {  
     data value;         // node's value
-    int* children;      // node's branches, enumerated from left to right
+    int children[3];    // node's branches, enumerated from left to right
     int parent;         // node parent's physical address
 };
 typedef struct _Node Node;
 
 // tree structure
 struct _Tree {
-    int rank;           // number of children per node
+    int rank;           // number of children per node (from 1 to 3)
     Node* nodes;        // array of tree's nodes
     int* memMap;        // memory map of the array, links free chunks of nodes array
     int nodesMax;       // capacity of the nodes array
@@ -69,29 +79,33 @@ typedef struct _Tree Tree;
 //####################//
 
 Node* NodeAlloc();
-int NodeInit(Node* node, int parent, data value, int rank);
+int NodeInit(Node* node, const int parent, const data value, const int rank);
 void NodeFree(Node* node);
 
 Tree* TreeAlloc();
-int TreeInit(Tree* tree, const char* name, int rank);
+int TreeInit(Tree* tree, const char* name, const int rank);
 void TreeFree(Tree* tree);
-int TreeResize(Tree* tree, int sizeNew);
-void TreeSort(Tree* tree);
+int TreeResize(Tree* tree, const int sizeNew);
+int TreeSort(Tree* tree);
+int _TreeSort(Tree* tree, const int node, const int parent, const int branch, int* counter, Node* buf);
 
 int TreeGetRoot(Tree* tree);
+int TreeGetFree(Tree* tree);
 int TreeFind(Tree* tree, data value);
 
-int TreeAddNode(Tree* tree, int addr, int child, data value);
-int TreeDelete(Tree* tree, int addr);
+int TreeAddNode(Tree* tree, const int addr, const int branch, const data value);
+int TreeDelete(Tree* tree, const int addr);
+
+char* GetTimestamp();
 
 #ifdef SEC_ON
 int TreeVerify(Tree* tree);
-void TreeDump(Tree* tree);
+void TreeDump(Tree* tree, const char* name);
 int TreeGetHash(Tree* tree);
 #endif
 
 #ifdef LOG_ON
-void TreeUpdLog(Tree* tree);
+int TreeUpdLog(Tree* tree, const char* func);
 #endif 
 
 //####################//

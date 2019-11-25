@@ -125,13 +125,13 @@ int DLListResize(DLList* list, const int sizeNew) {
     DLLIST_VERIFY(list);
     
     if (sizeNew < DELTA) {
-        printf("invalid new size! %d\n", sizeNew);
+        printf("invalid new size! %d -> %d\n", list->dataMax, sizeNew);
         return -1;
     } else if (sizeNew == list->dataMax) {
-        printf("same size\n");
+        printf("same size %d -> %d\n", list->dataMax, sizeNew);
         return 0;
     } else if (sizeNew < list->dataMax) {
-        printf("shrink\n");
+        printf("shrink %d -> %d\n", list->dataMax, sizeNew);
         DLListSort(list);
         list->dataCur = (list->dataCur > sizeNew) ? (sizeNew - DELTA) : (list->dataCur);
         list->dataMax = sizeNew;
@@ -141,12 +141,13 @@ int DLListResize(DLList* list, const int sizeNew) {
         list->tail = list->dataCur;
         list->next[list->tail] = 0;
     } else if (sizeNew > list->dataMax) {
-        printf("extend\n");
+        printf("extend %d -> %d\n", list->dataMax, sizeNew);
         list->data = realloc(list->data, sizeNew * sizeof(data));
         list->next = realloc(list->next, sizeNew * sizeof(data));
 
-        for (int i = list->dataMax - 1; i < sizeNew - 1; i++)
+        for (int i = list->dataMax; i < sizeNew - 1; i++)
             list->next[i] = i + 1;
+        list->free = list->dataMax;
         list->next[sizeNew - 1] = 0;
 
 
@@ -259,7 +260,6 @@ void DLListDump(DLList* list, const char* name) {
 
     if (list == NULL) {
         dprintf(dumpFd, "ERROR: NULL pointer to the structure!\n");
-        exit(-1);
     } else {
         char* timeStamp = GetTimestamp();
 
@@ -413,6 +413,9 @@ int DLListGetPhysAddr(DLList* list, const int addrLogical) {
 int DLListInsertL(DLList* list, const int addrPhysical, const data dat) {
     DLLIST_VERIFY(list);
 
+    if (list->dataCur >= list->dataMax - 1)
+        DLListResize(list, list->dataMax * 2);
+
     if (list->prev[addrPhysical] == 0 
         && (addrPhysical != list->head 
         && addrPhysical != list->tail)) {
@@ -454,9 +457,6 @@ int DLListInsertL(DLList* list, const int addrPhysical, const data dat) {
     DLListUpdLog(list, "DLListInsertL");
     #endif
 
-    if (list->dataCur >= list->dataMax - 2)
-        DLListResize(list, list->dataMax * 2);
-
     //if (list->isSorted == 'n')
     //    DLListSort(list);
 
@@ -465,6 +465,9 @@ int DLListInsertL(DLList* list, const int addrPhysical, const data dat) {
 
 int DLListInsertR(DLList* list, const int addrPhysical, const data dat) {
     DLLIST_VERIFY(list);
+
+    if (list->dataCur >= list->dataMax - 1)
+        DLListResize(list, list->dataMax * 2);
 
     if (list->prev[addrPhysical] == 0 
         && (addrPhysical != list->head 
@@ -507,9 +510,6 @@ int DLListInsertR(DLList* list, const int addrPhysical, const data dat) {
     #ifdef LOG_ON
     DLListUpdLog(list, "DLListInsertR");
     #endif
-
-    if (list->dataCur >= list->dataMax - 2)
-        DLListResize(list, list->dataMax * 2);
 
     //if (list->isSorted == 'n')
     //    DLListSort(list);
