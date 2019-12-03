@@ -60,7 +60,7 @@ int DLListInit(DLList* list, const char* name, int size) {
         list->next[i] = i + 1;
     list->next[size - 1] = 0;
 
-    list->prev = calloc(size, sizeof(data));
+    list->prev = calloc(size, sizeof(int));
 
     if (list->data == NULL || list->prev == NULL || list->next == NULL)
         return E_INIT_ERR;
@@ -170,7 +170,6 @@ int DLListResize(DLList* list, const int sizeNew) {
 }
 
 
-#ifdef SEC_ON
 int DLListVerify(DLList* list) {
     if (list == NULL)
         return -1;
@@ -225,6 +224,7 @@ int DLListVerify(DLList* list) {
     return OK;
 }
 
+#ifdef SEC_ON
 int DLListGetHash(DLList* list) {
     assert(list);
     assert(list->data);

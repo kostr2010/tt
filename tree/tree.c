@@ -37,7 +37,7 @@ Node* NodeAlloc() {
 
 int NodeInit(Node* node, const int parent, const int branchL, const int branchR, const data data) {
     if (node == NULL) {
-        printf("nullptr given in NodeInit!\n");
+        printf("[NodeInit] nullptr given!\n");
         return -1;
     } else {
         node->parent = parent;
@@ -69,15 +69,15 @@ Tree* TreeAlloc() {
 
 int TreeInit(Tree* tree, const char* name) {
     if (tree == NULL) {
-        printf("nullptr was given in TreeInit!\n");
+        printf("[TreeInit] nullptr was given!\n");
         return -1;
     } else if (tree->nodes == NULL) {
-        printf("tree->nodes is nullptr!\n");
+        printf("[TreeInit] tree->nodes is nullptr!\n");
         tree->err = E_INIT_ERR;
         return -1;
     } else if (tree->memmap == NULL) {
         tree->err = E_INIT_ERR;
-        printf("tree->memmap is nullptr!\n");
+        printf("[TreeInit] tree->memmap is nullptr!\n");
         return -1;
     } else {
         memset(tree->nodes, '\0', TREE_INIT_SZ);
@@ -105,12 +105,14 @@ int TreeInit(Tree* tree, const char* name) {
 
     if (tree->logfd == -1) {
         tree->err = E_LOG_DEAD;
-        printf("unable to open logfile at initialization point!\n");
+        printf("[TreeInit] unable to open logfile at initialization point!\n");
         return -1;
     }
 
     if (TreeUpdLog(tree, "TreeInit") != 0)
         tree->err = E_LOG_DEAD;
+
+    REE_VERIFY(tree);
     
     return 0;
 }
@@ -135,12 +137,12 @@ void TreeFree(Tree* tree) {
 
 int TreeResize(Tree* tree, const int sizeNew) {
     if (TreeSort(tree) == -1) {
-        printf("error while sorting tree!\n");
+        printf("[TreeResize] error while sorting tree!\n");
         return -1;
     }
 
     if (sizeNew < DELTA || sizeNew < tree->cur) {
-        printf("invalid new size %d -> %d\n", tree->max, sizeNew);
+        printf("[TreeResize] invalid new size %d -> %d\n", tree->max, sizeNew);
         
         if (TreeUpdLog(tree, "TreeResize (inv size)") != 0)
             tree->err = E_LOG_DEAD;
@@ -148,13 +150,13 @@ int TreeResize(Tree* tree, const int sizeNew) {
         return -1;
 
     } else if (sizeNew == tree->max) {
-        printf("same size %d -> %d\n", tree->max, sizeNew);
+        printf("[TreeResize] same size %d -> %d\n", tree->max, sizeNew);
 
         if (TreeUpdLog(tree, "TreeResize (same size)") != 0)
             tree->err = E_LOG_DEAD;
 
     } else if (sizeNew < tree->max) {
-        printf("shrink %d -> %d\n", tree->max, sizeNew);
+        printf("[TreeResize] shrink %d -> %d\n", tree->max, sizeNew);
 
         tree->max = sizeNew;
         tree->nodes = realloc(tree->nodes, sizeNew * sizeof(Node));
@@ -164,7 +166,7 @@ int TreeResize(Tree* tree, const int sizeNew) {
             tree->err = E_LOG_DEAD;
 
     } else if (sizeNew > tree->max) {
-        printf("extend %d -> %d\n", tree->max, sizeNew);
+        printf("[TreeResize] extend %d -> %d\n", tree->max, sizeNew);
 
         tree->nodes = realloc(tree->nodes, sizeNew * sizeof(Node));
         memset(tree->nodes + tree->max * sizeof(Node), '\0', (sizeNew - tree->max) * sizeof(Node));
@@ -182,6 +184,8 @@ int TreeResize(Tree* tree, const int sizeNew) {
         if (TreeUpdLog(tree, "TreeResize (extend)") != 0)
             tree->err = E_LOG_DEAD;
     }
+
+    REE_VERIFY(tree);
 
     return 0;
 }
@@ -205,18 +209,20 @@ int TreeSort(Tree* tree) {
     if (TreeUpdLog(tree, "TreeSort") != 0)
         tree->err = E_LOG_DEAD;
 
+    REE_VERIFY(tree);
+
     return 0;
 }
 
 int _TreeSort(Tree* tree, const int node, const int parent, const int branch, int* counter, Node* buf) {
     if (node == 0)
         return 0;
-
-    //printf("<<%d>>\n", *counter);
     
     (*counter) += 1;
-    if (*counter > tree->max)
+    if (*counter > tree->max) {
+        printf("[_TreeSort] index out of range!\n");
         return -1;
+    }
 
     int this = *counter;
     int branchL = (tree->nodes[node]).branch[left];
@@ -265,7 +271,7 @@ int TreeGetMax(Tree* tree) {
 
 int TreeFind(Tree* tree, const int node, data data) {
     if (tree->cur == 0) {
-        printf("tree is empty!\n");
+        printf("[TreeFind] tree is empty!\n");
         return -1;
     }
 
@@ -299,7 +305,7 @@ int TreeCountSubtree(Tree* tree, const int node) {
 
 int _TreeCountSubtree(Tree* tree, const int node, int* counter) {
     if (*counter > tree->cur) {
-        printf("counter out of range!\n");
+        printf("[TreeCountSubtree] counter out of range!\n");
         tree->err = E_SEQ_CORRUPTED;
         return -1;
     }
@@ -336,10 +342,10 @@ int TreeInsertNode(Tree* tree, const int parent, const int branch, const data da
         if (TreeUpdLog(tree, "TreeInsertNode (root added)") != 0)
         tree->err = E_LOG_DEAD;
     } else if ((tree->nodes[parent]).branch[branch] != 0) {
-        printf("branch %d of node %d is already occupied!\n", branch, parent);
+        printf("[TreeInsertNode] branch %d of node %d is already occupied!\n", branch, parent);
         return -1;
     } else if ((tree->nodes[parent]).parent == 0 && parent != tree->root) {
-        printf("trying to insert in unlinked chunk!\n");
+        printf("[TreeInsertNode] trying to insert in unlinked chunk!\n");
         return -1;
     } else {
         if (tree->cur >= tree->max - 2) {
@@ -360,6 +366,8 @@ int TreeInsertNode(Tree* tree, const int parent, const int branch, const data da
         }
     }
 
+    TREE_VERIFY(tree);
+
     return addrIns;
 }    
 
@@ -367,7 +375,7 @@ int TreeInsertNode(Tree* tree, const int parent, const int branch, const data da
 int TreeCopySubtree(Tree* src, Node* dst, const int node) {
     int subtreeSz = TreeCountSubtree(src, node);
     if (subtreeSz == -1) {
-        printf("can't count elements to copy subtree!\n");
+        printf("[TreeCopySubtree] can't count elements to copy subtree!\n");
         return -1;
     }
 
@@ -403,26 +411,28 @@ int _TreeCopySubtree(Tree* src, Node* dst, const int node, int* pos) {
 
 int TreeDeleteNode(Tree* tree, const int node) {
     if (_TreeDeleteNode(tree, node) == -1) {
-        printf("can't delete node and it's subtree!\n");
+        printf("[TreeDeleteNode] can't delete node and it's subtree!\n");
         return -1;
     }
 
     if (TreeUpdLog(tree, "TreeDeleteNode") != 0)
         tree->err = E_LOG_DEAD;
+
+    TREE_VERIFY(tree);
     
     return 0;
 }
 
 int _TreeDeleteNode(Tree* tree, const int node) {
     if (tree->cur == 0) {
-        printf("tree is already empty!\n");
+        printf("[TreeDeleteNode] tree is already empty!\n");
         return -1;
     } else if (tree->cur < 0) {
-        printf("tree->cur went negative while deleting!\n");
+        printf("[TreeDeleteNode] tree->cur went negative while deleting!\n");
         return -1;
     } else if (tree->cur < tree->max - DELTA && tree->max / 2 >= DELTA) {
         if (TreeResize(tree, tree->max / 2) == -1) {
-            printf("error while shrinking during delete!\n");
+            printf("[TreeDeleteNode] error while shrinking during delete!\n");
             return -1;
         }
     } else {
@@ -478,12 +488,21 @@ int TreeChangeNode(Tree* tree, const int node, int* parentNew, int* branchLNew, 
     if (TreeUpdLog(tree, "TreeChangeNode") != 0)
         tree->err = E_LOG_DEAD;
 
+    TREE_VERIFY(tree);
+
     return 0;
 }
 
 
-int TreeRead(Tree* tree, const char* pathname) {
-    return 0;
+Tree* TreeRead(const char* pathname) {
+    Tree* tree = TreeAlloc();
+
+    if (TREE_INIT(tree) == -1) {
+        printf("[TreeRead] initialzation error! returning nullptr...\n");
+        return NULL;
+    }
+
+
 }
 
 int TreeWrite(Tree* tree, const char* pathname) {

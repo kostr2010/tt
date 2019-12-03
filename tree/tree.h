@@ -1,6 +1,26 @@
 #ifndef TREE_H_INCLUDED
 #define TREE_H_INCLUDED
 
+#define SEC_ON
+#define LOG_ON
+
+#define TREE_INIT(tree) TreeInit(tree, #tree)
+
+#ifdef SEC_ON
+#define TREE_VERIFY(tree)   if (TreeVerify(tree) != OK) {\
+                                TreeDump(tree, #tree);\
+                                TreeFree(tree);\
+                                printf("executed with errors! see dump file for details\n");\
+                                exit(-1);\
+                            }
+#else
+#define TREE_VERIFY(tree)   if (TreeVerify(tree) != OK) {\
+                                TreeFree(tree);\
+                                printf("executed with errors! see dump file for details\n");\
+                                exit(-1);\
+                            }
+#endif
+
 //####################//
 
 typedef int data;
@@ -78,7 +98,7 @@ int TreeDeleteNode(Tree* tree, const int node);
 int _TreeDeleteNode(Tree* tree, const int node);
 int TreeChangeNode(Tree* tree, const int node, int* parentNew, int* branchLNew, int* branchRNew, data* dataNew);
 
-int TreeRead(Tree* tree, const char* pathname);
+Tree* TreeRead(const char* pathname);
 int TreeWrite(Tree* tree, const char* pathname);
 
 char* GetTimestamp();
