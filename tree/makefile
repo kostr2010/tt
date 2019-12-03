@@ -3,8 +3,8 @@ CFLAGS = -I. -Wall
 
 all: main clear
 
-main: list.o main.o list.h
-	$(CC) -o main main.o list.o
+main: tree.o main.o tree.h
+	$(CC) -o main main.o tree.o
 
 clear:
-	rm -rf list.o main.o
+	rm -rf tree.o main.o
