@@ -55,7 +55,7 @@ int DLListInit(DLList* list, const char* name, int size) {
     list->dataMax = size;
     list->dataCur = 0;
 
-    list->next = calloc(size, sizeof(data));
+    list->next = calloc(size, sizeof(int));
     for (int i = 1; i < size - 1; i++)
         list->next[i] = i + 1;
     list->next[size - 1] = 0;
@@ -136,14 +136,14 @@ int DLListResize(DLList* list, const int sizeNew) {
         list->dataCur = (list->dataCur > sizeNew) ? (sizeNew - DELTA) : (list->dataCur);
         list->dataMax = sizeNew;
         list->data = realloc(list->data, sizeNew * sizeof(data));
-        list->next = realloc(list->next, sizeNew * sizeof(data));
-        list->prev = realloc(list->prev, sizeNew * sizeof(data));
+        list->next = realloc(list->next, sizeNew * sizeof(int));
+        list->prev = realloc(list->prev, sizeNew * sizeof(int));
         list->tail = list->dataCur;
         list->next[list->tail] = 0;
     } else if (sizeNew > list->dataMax) {
         printf("extend %d -> %d\n", list->dataMax, sizeNew);
         list->data = realloc(list->data, sizeNew * sizeof(data));
-        list->next = realloc(list->next, sizeNew * sizeof(data));
+        list->next = realloc(list->next, sizeNew * sizeof(int));
 
         for (int i = list->dataMax; i < sizeNew - 1; i++)
             list->next[i] = i + 1;
@@ -151,7 +151,8 @@ int DLListResize(DLList* list, const int sizeNew) {
         list->next[sizeNew - 1] = 0;
 
 
-        list->prev = realloc(list->prev, sizeNew * sizeof(data));
+        list->prev = realloc(list->prev, sizeNew * sizeof(int));
+        memset(list->prev + list->dataMax * sizeof(int), '\0', (sizeNew - list->dataMax) * sizeof(int));
         list->dataMax = sizeNew;
     }
 
@@ -179,11 +180,13 @@ int DLListVerify(DLList* list) {
         return E_INV_SIZE;
     }
 
+    #ifdef LOG_ON
     if (list->logFd == -1) {
         list->err = E_LOG_DEAD;
         return E_LOG_DEAD;
     }
-
+    #endif
+    #ifdef SEC_ON
     if (list->canary1 != CANARY) {
         list->err = E_CANARY1_DEAD;
         return E_CANARY1_DEAD;
@@ -197,7 +200,7 @@ int DLListVerify(DLList* list) {
         list->err = E_HASH_CORRUPTED;
         return E_HASH_CORRUPTED;
     }
-
+    #endif
     if (list->dataCur < 0) {
         list->err = E_LIST_UNDERFLOW;
         return E_LIST_UNDERFLOW;

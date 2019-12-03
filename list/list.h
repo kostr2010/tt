@@ -15,7 +15,11 @@
                                     exit(-1);\
                                 }
 #else
-#define DLLIST_VERIFY(list) {}
+#define DLLIST_VERIFY(list) if (DLListVerify(list) != OK) {\
+                                    DLListFree(list);\
+                                    printf("executed with errors! see dump file for details\n");\
+                                    exit(-1);\
+                                }
 #endif
 
 //####################//
