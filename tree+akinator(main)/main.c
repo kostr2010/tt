@@ -3,21 +3,20 @@
 #include <string.h>
 #include <unistd.h>
 
+//####################//
+
 #include "tree.h"
 
 //####################//
 
-
-//####################//
-
-int Akinator(TreeTxt* tree);
-int _Akinator(TreeTxt* tree, int node);
-int AkinatorUpdTree(TreeTxt* tree, int branchAddr);
+int Akinator(struct _TreeTxt* tree);
+int _Akinator(struct _TreeTxt* tree, int node);
+int AkinatorUpdTree(struct _TreeTxt* tree, int branchAddr);
 
 //####################//
 
 int main() {
-    TreeTxt* tree = TreeTxtRead("./input/database.txt");
+    struct _TreeTxt* tree = TreeRead("./input/database.txt", Txt);
 
     if (tree == NULL) {
         printf("error while reading!\n");
@@ -25,30 +24,30 @@ int main() {
     }
 
     Akinator(tree);
-
-    TreeTxtWrite(tree, "input/database.txt");
-
-    TreeTxtSort(tree);
-
-    TreeTxtFree(tree);
-
+    
+    TreeWrite(tree, "input/database.txt");
+    
+    TreeSort(tree);
+    
+    TreeFree(tree);
+    
     return 0;
 }
 
 //####################//
 
-int Akinator(TreeTxt* tree) {
+int Akinator(struct _TreeTxt* tree) {
     printf("/////////////////////////////////////////////////////////////////////\n"
            "// Welcome to Akinator(c) v.alpha.03-LeGuinn by AI_gang            //\n"
            "// Just let this wander of machinery and human wit guess your word //\n"
            "/////////////////////////////////////////////////////////////////////\n\n");
 
-    int res = _Akinator(tree, TreeTxtGetRoot(tree));
+    int res = _Akinator(tree, TreeGetRoot(tree));
 
     return res;
 }
 
-int _Akinator(TreeTxt* tree, int node) {
+int _Akinator(struct _TreeTxt* tree, int node) {
     int branchL = tree->nodes[node].branch[left];
     int branchR = tree->nodes[node].branch[right];
 
@@ -70,7 +69,7 @@ int _Akinator(TreeTxt* tree, int node) {
                && (tree->nodes[branchL].branch[left] == 0 
                && tree->nodes[branchL].branch[right] == 0)) {
         printf("[AKINATOR] Is it <%s>?\ny/n\n", tree->nodes[branchL].data);
-        
+            
         scanf("%c", &ans);
         while(getchar() != '\n');
 
@@ -99,7 +98,7 @@ int _Akinator(TreeTxt* tree, int node) {
     return 0;
 }
 
-int AkinatorUpdTree(TreeTxt* tree, int branchAddr) {
+int AkinatorUpdTree(struct _TreeTxt* tree, int branchAddr) {
     printf("[AKINATOR] So tell me, what is this?\n");
 
     char* answer = calloc(40, sizeof(char));
@@ -116,9 +115,9 @@ int AkinatorUpdTree(TreeTxt* tree, int branchAddr) {
 
     memcpy(answerPrev, tree->nodes[branchAddr].data, 40);
 
-    TreeTxtChangeNode(tree, branchAddr, NULL, NULL, NULL, question);
-    TreeTxtInsertNode(tree, branchAddr, left, answer);
-    TreeTxtInsertNode(tree, branchAddr, right, answerPrev);
+    TreeChangeNode(tree, branchAddr, NULL, NULL, NULL, &question);
+    TreeInsertNode(tree, branchAddr, left, answer);
+    TreeInsertNode(tree, branchAddr, right, answerPrev);
 
     free(answer);
     free(answerPrev);
@@ -127,6 +126,11 @@ int AkinatorUpdTree(TreeTxt* tree, int branchAddr) {
     printf("[AKINATOR] This time you won, but now I became stronger!\n");
 
     return -1;
+}
+
+int Define(const char* object) {
+    
+    return 0;
 }
 
 //####################//

@@ -1,1 +1,1 @@
-"it flies"("birb", "doggo")
+"it flies"("it's not alive"("plane", "birb"), "it's not alive"("rock", "doggo"))

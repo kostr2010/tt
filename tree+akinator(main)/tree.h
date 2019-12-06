@@ -4,44 +4,26 @@
 #define SEC_ON
 #define LOG_ON
 
-    // TreeInt //
-#define TREE_INT_INIT(tree) TreeIntInit(tree, #tree)
+#define TREE_INIT(tree, type) TreeInit(tree, #tree, type)
 
 #ifdef SEC_ON
-#define TREE_INT_VERIFY(tree)   if (TreeIntVerify(tree) != OK) {\
-                                TreeIntDump(tree, #tree);\
-                                TreeIntFree(tree);\
+#define TREE_VERIFY(tree)   if (TreeVerify(tree) != OK) {\
+                                TreeDump(tree, #tree);\
+                                TreeFree(tree);\
                                 printf("executed with errors! see dump file for details\n");\
                                 exit(-1);\
                             }
 #else
-#define TREE_INT_VERIFY(tree)   if (TreeIntVerify(tree) != OK) {\
-                                TreeIntFree(tree);\
+#define TREE_VERIFY(tree)   if (TreeIntVerify(tree) != OK) {\
+                                TreeFree(tree);\
                                 printf("executed with errors! see dump file for details\n");\
                                 exit(-1);\
                             }
 #endif
-
-    // TreeTxt //
-#define TREE_TXT_INIT(tree) TreeTxtInit(tree, #tree)
-
-#ifdef SEC_ON
-#define TREE_TXT_VERIFY(tree)   if (TreeTxtVerify(tree) != OK) {\
-                                TreeTxtDump(tree, #tree);\
-                                TreeTxtFree(tree);\
-                                printf("executed with errors! see dump file for details\n");\
-                                exit(-1);\
-                            }
-#else
-#define TREE_TXT_VERIFY(tree)   if (TreeTxtVerify(tree) != OK) {\
-                                TreeTxtFree(tree);\
-                                printf("executed with errors! see dump file for details\n");\
-                                exit(-1);\
-                            }
-#endif
-
 
 //####################//
+
+typedef char* data;
 
 enum TreeErrs {
     OK,
@@ -54,9 +36,19 @@ enum TreeErrs {
 };
 
 enum Branches {
-    left = 0,
-    right = 1,
+    left,
+    right,
 };
+
+enum Types {
+    Int,
+    Txt,
+};  
+
+struct _Header {
+    int type;
+};
+typedef struct _Header Header;
 
 struct _NodeInt {
     int parent;
@@ -70,10 +62,11 @@ struct _NodeTxt {
     int branch[2];
     char data[40];
 };
-typedef struct _NodeTxt NodeTxt;
+typedef struct _NodeTxt Node;
 
 struct _TreeInt {
-    NodeInt* nodes;
+    Header header;
+    struct _NodeInt* nodes;
     int* memmap;
     int max;
     int cur;
@@ -87,7 +80,8 @@ struct _TreeInt {
 typedef struct _TreeInt TreeInt;
 
 struct _TreeTxt {
-    NodeTxt* nodes;
+    Header header;
+    struct _NodeTxt* nodes;
     int* memmap;
     int max;
     int cur;
@@ -98,99 +92,67 @@ struct _TreeTxt {
     enum TreeErrs err;
     long hash;
 };
-typedef struct _TreeTxt TreeTxt;
+typedef struct _TreeTxt Tree;
 
 //####################//
 
-    // common //
+Node* NodeAlloc();
+int NodeInit(Node* node, const int parent, const int branchL, const int branchR, const data data, int type);
+    int NodeInitIntHandler(struct _NodeInt* node, const int data);
+    int NodeInitTxtHandler(struct _NodeTxt* node, const char* data);
+void NodeFree(Node* node);
 
-int TreeCountSubtree(TreeInt* tree, const int node);
-int _TreeCountSubtree(TreeInt* tree, const int node, int* counter);
+Tree* TreeAlloc();
+int TreeInit(Tree* tree, const char* name, int type);
+void TreeFree(Tree* tree);
+int TreeResize(Tree* tree, const int sizeNew);
+int TreeSort(Tree* tree);
+int _TreeSort(Tree* tree, const int node, const int parent, const int branch, int* counter, Node* buf);
+
+int TreeGetRoot(Tree* tree);
+int TreeGetFree(Tree* tree);
+int TreeGetCur(Tree* tree);
+int TreeGetMax(Tree* tree);
+int TreeFind(Tree* tree, const int node, const data data);
+    int TreeFindTxtHandler(struct _TreeTxt* tree, const int node, const char* data);
+    int TreeFindIntHandler(struct _TreeInt* tree, const int node, const int data);
+
+int TreeInsertNode(Tree* tree, const int parent, const int branch, const data data);
+    int TreeInsertNodeTxtHandler(struct _TreeTxt* tree, const int node, const char* data);
+    int TreeInsertNodeIntHandler(struct _TreeInt* tree, const int node, const int data);
+int TreeCountSubtree(Tree* tree, const int node);
+int _TreeCountSubtree(Tree* tree, const int node, int* counter);
+int TreeCopySubtree(Tree* src, Node* dst, const int node);
+int _TreeCopySubtree(Tree* src, Node* dst, const int node, int* pos);
+int TreeDeleteNode(Tree* tree, const int node);
+int _TreeDeleteNode(Tree* tree, const int node);
+int TreeChangeNode(Tree* tree, const int node, int* parentNew, int* branchLNew, int* branchRNew, data* dataNew);
+    int TreeChangeNodeTxtHandler(struct _TreeTxt* tree, const int node, char** dataNew);
+    int TreeChangeNodeIntHandler(struct _TreeInt* tree, const int node, int* dataNew);
+
+Tree* TreeRead(const char* pathname, int type);
+int _TreeRead(Tree* tree, char** s);
+int TreeGetGr(char** s, Tree* tree, const int parent, const int branch);
+    int TreeTxtGetNode(char** s, struct _TreeTxt* tree, const int parent, const int branch);
+    int TreeIntGetNode(char** s, struct _TreeInt* tree, const int parent, const int branch);
 int GetNum(char** s);
 int GetStr(char** s);
 int GetSpace(char** s);
+int TreeWrite(Tree* tree, const char* pathname);
+int _TreeWrite(Tree* tree, int node, int fd);
 
-    // TreeInt //
-NodeInt* NodeIntAlloc();
-int NodeIntInit(NodeInt* node, const int parent, const int branchL, const int branchR, const int data);
-void NodeIntFree(NodeInt* node);
+int TreeVerify(Tree* tree);
+void TreeDump(struct _TreeTxt* tree, const char* name);
+    int TreeDumpTxtHandler(struct _TreeTxt* tree, const int fd);
+    int TreeDumpIntHandler(struct _TreeInt* tree, const int fd);
+void TreeIntDump(struct _TreeInt* tree, const char* name);
+int TreeGetHash(Tree* tree);
 
-TreeInt* TreeIntAlloc();
-int TreeIntInit(TreeInt* tree, const char* name);
-void TreeIntFree(TreeInt* tree);
-int TreeIntResize(TreeInt* tree, const int sizeNew);
-int TreeIntSort(TreeInt* tree);
-int _TreeIntSort(TreeInt* tree, const int node, const int parent, const int branch, int* counter, NodeInt* buf);
-
-int TreeIntGetRoot(TreeInt* tree);
-int TreeIntGetFree(TreeInt* tree);
-int TreeIntGetCur(TreeInt* tree);
-int TreeIntGetMax(TreeInt* tree);
-int TreeIntFind(TreeInt* tree, const int node, int data);
-
-int TreeIntInsertNode(TreeInt* tree, const int parent, const int branch, const int data);
-int TreeIntCountSubtree(TreeInt* tree, const int node);
-int _TreeIntCountSubtree(TreeInt* tree, const int node, int* counter);
-int TreeIntCopySubtree(TreeInt* src, NodeInt* dst, const int node);
-int _TreeIntCopySubtree(TreeInt* src, NodeInt* dst, const int node, int* pos);
-int TreeIntDeleteNode(TreeInt* tree, const int node);
-int _TreeIntDeleteNode(TreeInt* tree, const int node);
-int TreeIntChangeNode(TreeInt* tree, const int node, int* parentNew, int* branchLNew, int* branchRNew, int* dataNew);
-
-TreeInt* TreeIntRead(const char* pathname);
-int _TreeIntRead(TreeInt* tree, char** s);
-int TreeIntGetGr(char** s, TreeInt* tree, const int parent, const int branch);
-int TreeIntGetNode(char** s, TreeInt* tree, const int parent, const int branch);
-int TreeIntWrite(TreeInt* tree, const char* pathname);
-int _TreeIntWrite(TreeInt* tree, int node, int fd);
+int TreeUpdLog(struct _TreeTxt* tree, const char* func);
+    int TreeUpdLogTxtHandler(struct _TreeTxt* tree, int fd);
+    int TreeUpdLogIntHandler(struct _TreeInt* tree, int fd);
 
 char* GetTimestamp();
-
-int TreeIntVerify(TreeInt* tree);
-void TreeIntDump(TreeInt* tree, const char* name);
-int TreeIntGetHash(TreeInt* tree);
-
-int TreeIntUpdLog(TreeInt* tree, const char* func);
-
-    // TreeTxt //
-NodeTxt* NodeTxtAlloc();
-int NodeTxtInit(NodeTxt* node, const int parent, const int branchL, const int branchR, const char* data);
-void NodeTxtFree(NodeTxt* node);
-
-TreeTxt* TreeTxtAlloc();
-int TreeTxtInit(TreeTxt* tree, const char* name);
-void TreeTxtFree(TreeTxt* tree);
-int TreeTxtResize(TreeTxt* tree, const int sizeNew);
-int TreeTxtSort(TreeTxt* tree);
-int _TreeTxtSort(TreeTxt* tree, const int node, const int parent, const int branch, int* counter, NodeTxt* buf);
-
-int TreeTxtGetRoot(TreeTxt* tree);
-int TreeTxtGetFree(TreeTxt* tree);
-int TreeTxtGetCur(TreeTxt* tree);
-int TreeTxtGetMax(TreeTxt* tree);
-int TreeTxtFind(TreeTxt* tree, const int node, const char* data);
-
-int TreeTxtInsertNode(TreeTxt* tree, const int parent, const int branch, const char* data);
-int TreeTxtCountSubtree(TreeTxt* tree, const int node);
-int _TreeTxtCountSubtree(TreeTxt* tree, const int node, int* counter);
-int TreeTxtCopySubtree(TreeTxt* src, NodeTxt* dst, const int node);
-int _TreeTxtCopySubtree(TreeTxt* src, NodeTxt* dst, const int node, int* pos);
-int TreeTxtDeleteNode(TreeTxt* tree, const int node);
-int _TreeTxtDeleteNode(TreeTxt* tree, const int node);
-int TreeTxtChangeNode(TreeTxt* tree, const int node, int* parentNew, int* branchLNew, int* branchRNew, char* dataNew);
-
-TreeTxt* TreeTxtRead(const char* pathname);
-int _TreeTxtRead(TreeTxt* tree, char** s);
-int TreeTxtGetGr(char** s, TreeTxt* tree, const int parent, const int branch);
-int TreeTxtGetNode(char** s, TreeTxt* tree, const int parent, const int branch);
-int TreeTxtWrite(TreeTxt* tree, const char* pathname);
-int _TreeTxtWrite(TreeTxt* tree, int node, int fd);
-
-int TreeTxtVerify(TreeTxt* tree);
-void TreeTxtDump(TreeTxt* tree, const char* name);
-int TreeTxtGetHash(TreeTxt* tree);
-
-int TreeTxtUpdLog(TreeTxt* tree, const char* func);
 
 //####################//
 
