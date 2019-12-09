@@ -1038,12 +1038,12 @@ int TreeUpdLog(Tree* tree, const char* func) {
 int TreeUpdLogTxtHandler(struct _TreeTxt* tree, int fd) {
     int res = 0;
 
-    res = dprintf(tree->logfd, "  |  &|          val| &L| &R|  &par|\n");
+    res = dprintf(tree->logfd, "  |  &|                              val| &L| &R|  &par|\n");
     for (int i = 0; i < tree->max; i++) {
         if (((tree->nodes[i]).parent == 0 && i != tree->root) || tree->cur == 0)
-            res = dprintf(tree->logfd, "  [%2d ] (%10s [ %2d, %2d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[left], tree->nodes[i].branch[right], tree->nodes[i].parent);
+            res = dprintf(tree->logfd, "  [%2d ] (%30s [ %2d, %2d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[left], tree->nodes[i].branch[right], tree->nodes[i].parent);
         else 
-            res = dprintf(tree->logfd, "  [%2d*] (%10s [ %2d, %2d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[left], tree->nodes[i].branch[right], tree->nodes[i].parent);
+            res = dprintf(tree->logfd, "  [%2d*] (%30s [ %2d, %2d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[left], tree->nodes[i].branch[right], tree->nodes[i].parent);
     }
 
     return res;
