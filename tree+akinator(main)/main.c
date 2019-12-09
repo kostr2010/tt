@@ -50,12 +50,20 @@ int main() {
 //####################//
 
 int Akinator(struct _TreeTxt* tree) {
+    TREE_VERIFY(tree);
+
     printf("/////////////////////////////////////////////////////////////////////\n"
            "// Welcome to Akinator(c) v.alpha.03-LeGuinn by AI_gang            //\n"
            "// Just let this wander of machinery and human wit guess your word //\n"
            "/////////////////////////////////////////////////////////////////////\n\n");
 
     int res = _Akinator(tree, TreeGetRoot(tree));
+
+    #ifdef SEC_ON
+    tree->hash = TreeGetHash(tree);
+    #endif
+
+    TREE_VERIFY(tree);
 
     return res;
 }

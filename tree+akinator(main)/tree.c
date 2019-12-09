@@ -127,6 +127,7 @@ int TreeInit(Tree* tree, const char* name, int type) {
             default: printf("[TreeInit] invalid type!"); return -1;
         }
 
+        #ifdef LOG_ON
         char* logName = GetTimestamp();
         logName = realloc(logName, strlen(logName) + strlen(name) + strlen("log/-.log"));
         char* logName2 = calloc(30, 1);
@@ -134,11 +135,16 @@ int TreeInit(Tree* tree, const char* name, int type) {
         sprintf(logName, "log/%s-%s.log", name, logName2);    
         tree->logfd = open(logName, O_RDWR | O_TRUNC | O_CREAT, S_IRUSR| S_IWUSR);
         free(logName);
+        #endif
 
         tree->err = OK;
+
+        #ifdef SEC_ON 
         tree->hash = TreeGetHash(tree);
+        #endif
     }
 
+    #ifdef LOG_ON
     if (tree->logfd == -1) {
         tree->err = E_LOG_DEAD;
         printf("[TreeInit] unable to open logfile at initialization point!\n");
@@ -147,6 +153,7 @@ int TreeInit(Tree* tree, const char* name, int type) {
 
     if (TreeUpdLog(tree, "TreeInit") != 0)
         tree->err = E_LOG_DEAD;
+    #endif
 
     TREE_VERIFY(tree);
     
@@ -181,17 +188,15 @@ int TreeResize(Tree* tree, const int sizeNew) {
 
     if (sizeNew < DELTA || sizeNew < tree->cur) {
         printf("[TreeResize] invalid new size %d -> %d\n", tree->max, sizeNew);
-        
-        if (TreeUpdLog(tree, "TreeResize (inv size)") != 0)
-            tree->err = E_LOG_DEAD;
-
         return -1;
 
     } else if (sizeNew == tree->max) {
         printf("[TreeResize] same size %d -> %d\n", tree->max, sizeNew);
-
+        
+        #ifdef LOG_ON
         if (TreeUpdLog(tree, "TreeResize (same size)") != 0)
             tree->err = E_LOG_DEAD;
+        #endif
 
     } else if (sizeNew < tree->max) {
         printf("[TreeResize] shrink %d -> %d\n", tree->max, sizeNew);
@@ -200,8 +205,10 @@ int TreeResize(Tree* tree, const int sizeNew) {
         tree->nodes = realloc(tree->nodes, sizeNew * sizeof(Node));
         tree->memmap = realloc(tree->memmap, sizeNew * sizeof(Node));        
 
+        #ifdef LOG_ON
         if (TreeUpdLog(tree, "TreeResize (shrink)") != 0)
             tree->err = E_LOG_DEAD;
+        #endif
 
     } else if (sizeNew > tree->max) {
         printf("[TreeResize] extend %d -> %d\n", tree->max, sizeNew);
@@ -219,9 +226,15 @@ int TreeResize(Tree* tree, const int sizeNew) {
         
         tree->max = sizeNew;
 
+        #ifdef LOG_ON
         if (TreeUpdLog(tree, "TreeResize (extend)") != 0)
             tree->err = E_LOG_DEAD;
+        #endif
     }
+
+    #ifdef SEC_ON
+    tree->hash = TreeGetHash(tree);
+    #endif
 
     TREE_VERIFY(tree);
 
@@ -245,8 +258,14 @@ int TreeSort(Tree* tree) {
     tree->nodes = nodesNew;
     tree->free = tree->cur + 1;
 
+    #ifdef LOG_ON
     if (TreeUpdLog(tree, "TreeSort") != 0)
         tree->err = E_LOG_DEAD;
+    #endif
+
+    #ifdef SEC_ON
+    tree->hash = TreeGetHash(tree);
+    #endif
 
     TREE_VERIFY(tree);
 
@@ -309,6 +328,8 @@ int TreeGetMax(Tree* tree) {
 }
 
 int TreeFind(Tree* tree, const int node, const data data) {
+    TREE_VERIFY(tree);
+
     if (tree->cur == 0) {
         printf("[TreeFind] tree is empty!\n");
         return -1;
@@ -334,6 +355,8 @@ int TreeFind(Tree* tree, const int node, const data data) {
     res = TreeFind(tree, (tree->nodes[node]).branch[right], data);
     if (res != -1)
         return res;
+
+    TREE_VERIFY(tree);
     
     return -1;
 }
@@ -407,10 +430,16 @@ int TreeInsertNode(Tree* tree, const int parent, const int branch, data data) {
             tree->free = tree->memmap[addrIns];
             tree->cur++;
 
+            #ifdef LOG_ON
             if (TreeUpdLog(tree, "TreeInsertNode (inserted)") != 0)
-            tree->err = E_LOG_DEAD;
+                tree->err = E_LOG_DEAD;
+            #endif
         }
     }
+
+    #ifdef SEC_ON
+    tree->hash = TreeGetHash(tree);
+    #endif
 
     TREE_VERIFY(tree);
 
@@ -484,8 +513,10 @@ int TreeCopySubtree(Tree* src, Node* dst, const int node) {
     if (_TreeCopySubtree(src, dst, node, &pos) == -1)
         return -1;
 
+    #ifdef LOG_ON
     if (TreeUpdLog(src, "TreeCopySubTree") != 0)
         src->err = E_LOG_DEAD;
+    #endif
 
     TREE_VERIFY(src);
 
@@ -518,8 +549,14 @@ int TreeDeleteNode(Tree* tree, const int node) {
         return -1;
     }
 
+    #ifdef LOG_ON
     if (TreeUpdLog(tree, "TreeDeleteNode") != 0)
         tree->err = E_LOG_DEAD;
+    #endif
+
+    #ifdef SEC_ON
+    tree->hash = TreeGetHash(tree);
+    #endif
 
     TREE_VERIFY(tree);
     
@@ -594,8 +631,14 @@ int TreeChangeNode(Tree* tree, const int node, int* parentNew, int* branchLNew, 
         default: printf("[NodeInsertNode] invalid type!\n"); return -1;
     }
 
+    #ifdef LOG_ON
     if (TreeUpdLog(tree, "TreeChangeNode") != 0)
         tree->err = E_LOG_DEAD;
+    #endif
+
+    #ifdef SEC_ON
+    tree->hash = TreeGetHash(tree);
+    #endif
 
     TREE_VERIFY(tree);
 
@@ -652,6 +695,10 @@ Tree* TreeRead(const char* pathname, int type) {
         printf("[TreeRead] error while rading!\n");
         return NULL;
     }
+
+    #ifdef SEC_ON
+    tree->hash = TreeGetHash(tree);
+    #endif
 
     TREE_VERIFY(tree);
 
@@ -927,9 +974,25 @@ int _TreeWrite(Tree* tree, int node, int fd) {
 
 
 int TreeVerify(Tree* tree) {
+    if (tree == NULL) {
+        printf("[TreeVerify] tree is nullptr!\n");
+        return -1;
+    }
+
+    if (tree->hash != TreeGetHash(tree)) {
+        tree->err = E_HASH_CORRUPTED;
+        return tree->err;
+    }
+
+    if (tree->cur > tree->max || tree->cur < 0 || tree->max < 0) {
+        tree->err = E_SIZE_INVALID;
+        return tree->err;
+    }
+
     return tree->err;
 }
 
+#ifdef SEC_ON
 void TreeDump(Tree* tree, const char* name) {
     char* dumpName = calloc(1 + strlen(name) + strlen("dump/.log"), sizeof(char));
     sprintf(dumpName, "dump/%s.log", name);
@@ -979,11 +1042,20 @@ int TreeDumpIntHandler(struct _TreeInt* tree, const int dumpFd) {
     return 0;
 }
 
-int TreeGetHash(Tree* tree) {
-    return 0;
+long TreeGetHash(Tree* tree) {
+    if (tree == NULL) {
+        printf("[TreeGetHash] nullptr given! returning -1\n");
+        return -1;
+    } else {
+        return 100;
+    }
+
+    return -1;
 }
+#endif
 
 
+#ifdef LOG_ON
 int TreeUpdLog(Tree* tree, const char* func) {
     char* timeStamp = GetTimestamp();
     int res = 0;
@@ -1062,6 +1134,7 @@ int TreeUpdLogIntHandler(struct _TreeInt* tree, int fd) {
 
     return res;
 }
+#endif
 
 char* GetTimestamp() {
     time_t ltime;

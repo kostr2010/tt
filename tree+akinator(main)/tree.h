@@ -16,7 +16,7 @@
 #else
 #define TREE_VERIFY(tree)   if (TreeIntVerify(tree) != OK) {\
                                 TreeFree(tree);\
-                                printf("executed with errors! see dump file for details\n");\
+                                printf("executed with errors!\n");\
                                 exit(-1);\
                             }
 #endif
@@ -73,9 +73,13 @@ struct _TreeInt {
     int root;
     int free;
 
+    #ifdef LOG_ON
     int logfd;
+    #endif
     enum TreeErrs err;
+    #ifdef SEC_ON
     long hash;
+    #endif
 };
 typedef struct _TreeInt TreeInt;
 
@@ -88,9 +92,13 @@ struct _TreeTxt {
     int root;
     int free;
 
+    #ifdef LOG_ON
     int logfd;
+    #endif
     enum TreeErrs err;
+    #ifdef SEC_ON
     long hash;
+    #endif
 };
 typedef struct _TreeTxt Tree;
 
@@ -142,15 +150,18 @@ int TreeWrite(Tree* tree, const char* pathname);
 int _TreeWrite(Tree* tree, int node, int fd);
 
 int TreeVerify(Tree* tree);
+#ifdef SEC_ON
 void TreeDump(struct _TreeTxt* tree, const char* name);
     int TreeDumpTxtHandler(struct _TreeTxt* tree, const int fd);
     int TreeDumpIntHandler(struct _TreeInt* tree, const int fd);
-void TreeIntDump(struct _TreeInt* tree, const char* name);
-int TreeGetHash(Tree* tree);
+long TreeGetHash(Tree* tree);
+#endif
 
+#ifdef LOG_ON
 int TreeUpdLog(struct _TreeTxt* tree, const char* func);
     int TreeUpdLogTxtHandler(struct _TreeTxt* tree, int fd);
     int TreeUpdLogIntHandler(struct _TreeInt* tree, int fd);
+#endif
 
 char* GetTimestamp();
 
