@@ -33,7 +33,7 @@
 
 //####################//
 
-const int PRESICION = 1000;
+const int PRECISION = 1000;
 
 //####################//
 
@@ -345,15 +345,15 @@ int GetNum(char** s, struct _TreeMath* tree, int node, int branch) {
     int val = 0;
 
     if (strncmp(*s, "pi", 2) == 0) {
-        val = (int)(3.14 * PRESICION);
+        val = (int)(3.14 * PRECISION);
         *s += 2 * sizeof(char);
     } else if (strncmp(*s, "e", 1) == 0) {
-        val = (int)(2.73 * PRESICION);
+        val = (int)(2.73 * PRECISION);
         *s += sizeof(char);
     } else if (isdigit(**s) == 0 && **s != '-' && **s != '+') {
         return -1;
     } else {
-        val = (int)(atof(*s) * PRESICION);
+        val = (int)(atof(*s) * PRECISION);
     }
     
     while (isdigit(**s) != 0 || **s == '-' || **s == '+')   // skipping number
@@ -486,7 +486,7 @@ int DiffNode(struct _TreeMath* tree, const int node) {
 
 int DiffVariable(struct _TreeMath* tree, const int node) {
     printf("*090909\n");
-    MathData dataNew = {Number, 1000};
+    MathData dataNew = {Number, 1 * PRECISION};
 
     TreeChangeNode(tree, node, NULL, NULL, NULL, &dataNew);
 
@@ -574,7 +574,7 @@ int DiffCos(struct _TreeMath* tree, const int node) {
     TreeChangeNode(tree, node, NULL, NULL, NULL, &dataNew);
 
     dataNew.type = Number;
-    dataNew.value = -1000;
+    dataNew.value = -1 * PRECISION;
     TreeInsertNode(tree, node, Right, &dataNew);
 
     dataNew.type = Function;
@@ -592,31 +592,137 @@ int DiffCos(struct _TreeMath* tree, const int node) {
 }
 
 int DiffTan(struct _TreeMath* tree, const int node) {
+    int branchL = tree->nodes[node].branch[Left];
+
+    Node* argCpy = TreeCopySubtree(tree, branchL);
+    int argCount = TreeCountSubtree(tree, branchL);
     
+    MathData dataNew = {Operator, Div};
+    TreeChangeNode(tree, node, NULL, NULL, NULL, &dataNew);
+    TreeDeleteNode(tree, tree->nodes[node].branch[Right]);
+    TreeDeleteNode(tree, tree->nodes[node].branch[Left]);
+
+    dataNew.type = Number;
+    dataNew.value = 1 * PRECISION;
+    TreeInsertNode(tree, node, Left, &dataNew);
+
+    dataNew.type = Operator;
+    dataNew.value = Pow;
+    TreeInsertNode(tree, node, Right, &dataNew);
+
+    int branchR = tree->nodes[node].branch[Right];
+
+    dataNew.type = Number;
+    dataNew.value = 2 * PRECISION;
+    TreeInsertNode(tree, branchR, Right, &dataNew);
+
+    dataNew.type = Function;
+    dataNew.value = Cos;
+    TreeInsertNode(tree, branchR, Left, &dataNew);
+
+    TreeGlueSubtree(tree, argCpy, tree->nodes[branchR].branch[Left], Left, argCount);
+
+    free(argCpy);
+
+    return 0;
 }
 
 int DiffCtan(struct _TreeMath* tree, const int node) {
-    
-}
+    int branchL = tree->nodes[node].branch[Left];
 
+    Node* argCpy = TreeCopySubtree(tree, branchL);
+    int argCount = TreeCountSubtree(tree, branchL);
+    
+    MathData dataNew = {Operator, Div};
+    TreeChangeNode(tree, node, NULL, NULL, NULL, &dataNew);
+    TreeDeleteNode(tree, tree->nodes[node].branch[Right]);
+    TreeDeleteNode(tree, tree->nodes[node].branch[Left]);
+
+    dataNew.type = Number;
+    dataNew.value = -1 * PRECISION;
+    TreeInsertNode(tree, node, Left, &dataNew);
+
+    dataNew.type = Operator;
+    dataNew.value = Pow;
+    TreeInsertNode(tree, node, Right, &dataNew);
+
+    int branchR = tree->nodes[node].branch[Right];
+
+    dataNew.type = Number;
+    dataNew.value = 2 * PRECISION;
+    TreeInsertNode(tree, branchR, Right, &dataNew);
+
+    dataNew.type = Function;
+    dataNew.value = Sin;
+    TreeInsertNode(tree, branchR, Left, &dataNew);
+
+    TreeGlueSubtree(tree, argCpy, tree->nodes[branchR].branch[Left], Left, argCount);
+
+    free(argCpy);
+
+    return 0;
+
+    return 0;
+}
+// TODO
 int DiffAsin(struct _TreeMath* tree, const int node) {
-    
-}
+    printf("[DiffAsin] still in active development! come back later!\n");
 
+    return -1;
+}
+// TODO
 int DiffAcos(struct _TreeMath* tree, const int node) {
-    
-}
+    printf("[DiffAcos] still in active development! come back later!\n");
 
+    return -1;
+}
+// TODO
 int DiffAtan(struct _TreeMath* tree, const int node) {
-    
-}
+    printf("[DiffAtan] still in active development! come back later!\n");
 
+    return -1;
+}
+// TODO
 int DiffActan(struct _TreeMath* tree, const int node) {
-    
+    printf("[DiffActan] still in active development! come back later!\n");
+
+    return -1;
 }
 
 int DiffLog(struct _TreeMath* tree, const int node) {
+    Node* argCpy = TreeCopySubtree(tree, tree->nodes[node].branch[Left]);
+    int argCount = TreeCountSubtree(tree, tree->nodes[node].branch[Left]);
     
+    MathData dataNew = {Operator, Div};
+    TreeChangeNode(tree, node, NULL, NULL, NULL, &dataNew);
+    TreeDeleteNode(tree, tree->nodes[node].branch[Right]);
+    TreeDeleteNode(tree, tree->nodes[node].branch[Left]);
+
+    dataNew.type = Number;
+    dataNew.value = 1 * PRECISION;
+    TreeInsertNode(tree, node, Left, &dataNew);
+
+    dataNew.type = Operator;
+    dataNew.value = Mul;
+    TreeInsertNode(tree, node, Right, &dataNew);
+
+    int branchR = tree->nodes[node].branch[Right];
+
+    TreeGlueSubtree(tree, argCpy, branchR, Left, argCount);
+
+    dataNew.type = Function;
+    dataNew.value = Ln;
+    TreeInsertNode(tree, branchR, Right, &dataNew);
+
+    dataNew.type = Number;
+    dataNew.value = 10 * PRECISION;
+    TreeInsertNode(tree, tree->nodes[branchR].branch[Right], Left, &dataNew);
+
+    free(argCpy);
+
+    return 0;
+
+    return 0;
 }
 
 int DiffLn(struct _TreeMath* tree, const int node) {
@@ -629,7 +735,7 @@ int DiffLn(struct _TreeMath* tree, const int node) {
     TreeDeleteNode(tree, tree->nodes[node].branch[Left]);
 
     dataNew.type = Number;
-    dataNew.value = 1000;
+    dataNew.value = 1 * PRECISION;
 
     TreeInsertNode(tree, node, Left, &dataNew);
     TreeGlueSubtree(tree, argCpy, node, Right, argCount);
@@ -640,13 +746,36 @@ int DiffLn(struct _TreeMath* tree, const int node) {
 }
 
 int DiffSqrt(struct _TreeMath* tree, const int node) {
+    Node* funcCpy = TreeCopySubtree(tree, node);
+    int funcCount = TreeCountSubtree(tree, node);
     
+    MathData dataNew = {Operator, Div};
+    TreeChangeNode(tree, node, NULL, NULL, NULL, &dataNew);
+    TreeDeleteNode(tree, tree->nodes[node].branch[Right]);
+    TreeDeleteNode(tree, tree->nodes[node].branch[Left]);
+
+    dataNew.type = Number;
+    dataNew.value = 1 * PRECISION;
+    TreeInsertNode(tree, node, Left, &dataNew);
+
+    dataNew.type = Operator;
+    dataNew.value = Mul;
+    TreeInsertNode(tree, node, Right, &dataNew);
+
+    int branchR = tree->nodes[node].branch[Right];
+
+    dataNew.type = Number;
+    dataNew.value = 2 * PRECISION;
+    TreeInsertNode(tree, branchR, Left, &dataNew);
+
+    TreeGlueSubtree(tree, funcCpy, branchR, Right, funcCount);
+
+    free(funcCpy);
+
+    return 0;
 }
 
 int DiffOperator(struct _TreeMath* tree, const int node) {
-    int branchL = tree->nodes[node].branch[Left];
-    int branchR = tree->nodes[node].branch[Right];
-
     // getting func's derivative. these functions only change function's node, f.ex: sin(nx) -> cos(nx); cos(nx) -> -1 * sin(nx)
     switch (tree->nodes[node].data.value) {
         case Mul: if (DiffMul(tree, node) == -1) {return -1;} break;
@@ -741,6 +870,8 @@ int DiffDiv(struct _TreeMath* tree, const int node) {
 
     free(leftCpy);
     free(rightCpy);
+
+    return 0;
 }
 
 int DiffSumSub(struct _TreeMath* tree, const int node) {
@@ -788,6 +919,8 @@ int DiffPow(struct _TreeMath* tree, const int node) {
     free(leftCpy);
     free(rightCpy);
     free(powCpy);
+
+    return 0;
 }
 
 int DiffPrintTree(struct _TreeMath* tree) {
@@ -831,10 +964,6 @@ int DiffPrintTree(struct _TreeMath* tree) {
 }
 
 int _DiffPrintTree(const int fd, struct _TreeMath* tree, const int node) {
-    int branchL = tree->nodes[node].branch[Left];
-    int branchR = tree->nodes[node].branch[Right];
-    //printf("node: %d, R: %d, L: %d\n", node, branchR, branchL);
-    
     if (node != 0) {
         switch (tree->nodes[node].data.type) {
             case Variable: if (PrintVariable(fd, tree, node) == -1) {return -1;} break;
@@ -856,13 +985,13 @@ int PrintVariable(const int fd, struct _TreeMath* tree, const int node) {
 
 int PrintNumber(const int fd, struct _TreeMath* tree, const int node) {
     if (tree->nodes[node].data.value == 3140) {
-        dprintf(fd, "\\pi", (double)(tree->nodes[node].data.value) / PRESICION);
+        dprintf(fd, "\\pi");
     } else if (tree->nodes[node].data.value == 2730) {
-        dprintf(fd, "e", (double)(tree->nodes[node].data.value) / PRESICION);
+        dprintf(fd, "e");
     } else if (tree->nodes[node].data.value >= 0) { 
-        dprintf(fd, "%0.2f", (double)(tree->nodes[node].data.value) / PRESICION);
+        dprintf(fd, "%0.2f", (double)(tree->nodes[node].data.value) / PRECISION);
     } else {
-        dprintf(fd, "(%0.2f)", (double)(tree->nodes[node].data.value) / PRESICION); 
+        dprintf(fd, "(%0.2f)", (double)(tree->nodes[node].data.value) / PRECISION); 
     }
     
 
@@ -1013,7 +1142,6 @@ int PrintPow(const int fd, struct _TreeMath* tree, const int node) {
 
 int PrintFunction(const int fd, struct _TreeMath* tree, const int node) {
     int branchL = tree->nodes[node].branch[Left];
-    int branchR = tree->nodes[node].branch[Right];
 
     switch (tree->nodes[node].data.value) {
         case Sin:   dprintf(fd, "\\sin{ \\left("); if (_DiffPrintTree(fd, tree, branchL) == -1) {return -1;} dprintf(fd, "\\right) }"); break; 
