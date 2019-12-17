@@ -871,6 +871,14 @@ int SimplifyMul(struct _TreeMath* tree, const int node, int* flag) {
         free(leftCpy);
 
         *flag = 1;
+    } else if (TYPE(R) == Number && TYPE(L) == Number) {
+        MathData dataNew = {};
+        CHANGE(node, Number, (VALUE(L) * VALUE(R)) * PRECISION);
+
+        DELETE(L);
+        DELETE(R);
+
+        *flag = 1;
     }
 
     return 0;
@@ -904,6 +912,14 @@ int SimplifyDiv(struct _TreeMath* tree, const int node, int* flag) {
         TreeGlueSubtree(tree, leftCpy, parent, parentBranch, leftCount);
 
         free(leftCpy);
+
+        *flag = 1;
+    } else if (TYPE(R) == Number && TYPE(L) == Number) {
+        MathData dataNew = {};
+        CHANGE(node, Number, (VALUE(L) / VALUE(R)) * PRECISION);
+
+        DELETE(L);
+        DELETE(R);
 
         *flag = 1;
     }
@@ -943,6 +959,14 @@ int SimplifySum(struct _TreeMath* tree, const int node, int* flag) {
         free(leftCpy);
 
         *flag = 1;
+    } else if (TYPE(R) == Number && TYPE(L) == Number) {
+        MathData dataNew = {};
+        CHANGE(node, Number, (VALUE(L) + VALUE(R)) * PRECISION);
+
+        DELETE(L);
+        DELETE(R);
+
+        *flag = 1;
     }
 
     return 0;
@@ -974,6 +998,14 @@ int SimplifySub(struct _TreeMath* tree, const int node, int* flag) {
         CHANGE(node, Operator, Mul);
         DELETE(R);
         INSERT(node, Right, Number, -1 * PRECISION);
+
+        *flag = 1;
+    } else if (TYPE(R) == Number && TYPE(L) == Number) {
+        MathData dataNew = {};
+        CHANGE(node, Number, (VALUE(L) - VALUE(R)) * PRECISION);
+
+        DELETE(L);
+        DELETE(R);
 
         *flag = 1;
     }
@@ -1065,7 +1097,7 @@ int DiffPrintTree(struct _TreeMath* tree) {
         return -1;
     }
 
-    dprintf(fd, "\\] \n\\end{document}");
+    dprintf(fd, "\\] \n\\end{document}\n");
 
     system("pdflatex output/report.tex");
 

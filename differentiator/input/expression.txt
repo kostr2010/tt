@@ -1,1 +1,1 @@
-tan(cos(2*x)) #
+x * 2 + tan(cos(2*x)) #
