@@ -1,32 +1,39 @@
-// Tiers are from in descending order (0 - first priority, 5 - last priority)
-// 
-// TIER0:   NUM | VAR | PAR | FUNC
-//          NUM:    [0-9]+ | [pi, e, i]
-//          VAR:    [x]
-//          PAR:    '(' TIER3 ')'
-//          FUNC:   [sin, cos, ln...] '(' TIER3 ')'
-// 
-// TIER1:   POW
-//          POW:    TIER0 {'^' TIER0}*
-// 
-// TIER2:   MULDIV
-//          MULDIV: TIER1 {[*, /] TIER1}*
-// 
-// TIER3:   SUMSUB
-//          SUMSUB: TIER2 {[+, -] TIER2}*
-// 
-// TIER4:   GR
-//          GR:     TIER3 #
-//
-
-//####################//
-
 #ifndef DIFF_H_INCLUDED
 #define DIFF_H_INCLUDED
 
 //####################//
 
 #include "tree.h"
+
+//####################//
+// DSL lang
+
+#ifndef DSL_H
+#define DSL_H
+
+#define R  tree->nodes[node].branch[Right]
+#define L  tree->nodes[node].branch[Left]
+#define RR tree->nodes[R].branch[Right]
+#define RL tree->nodes[R].branch[Left]
+#define LR tree->nodes[L].branch[Right]
+#define LL tree->nodes[L].branch[Left]
+
+#define TYPE(node) tree->nodes[node].data.type
+#define VALUE(node) tree->nodes[node].data.value
+
+#define DELETE(node)                            TreeDeleteNode(tree, node)
+
+#define CHANGE(node, typeNew, valueNew)         dataNew.type = typeNew;\
+                                                dataNew.value = valueNew;\
+                                                TreeChangeNode(tree, node, NULL, NULL, NULL, &dataNew)
+
+#define INSERT(node, branch, typeNew, valueNew) dataNew.type = typeNew;\
+                                                dataNew.value = valueNew;\
+                                                TreeInsertNode(tree, node, branch, &dataNew)
+
+#define D(node)                                 DiffNode(tree, node)
+
+#endif
 
 //####################//
 
@@ -98,6 +105,18 @@ int DiffGetDerivative(struct _TreeMath* tree);
             int DiffSumSub(struct _TreeMath* tree, const int node);
             int DiffPow(struct _TreeMath* tree, const int node);
 
+int DiffSimplify(struct _TreeMath* tree);
+    int _DiffSimplify(struct _TreeMath* tree, const int node, int* flag);
+        int SimplifyOperator(struct _TreeMath* tree, const int node, int* flag);
+            int SimplifyMul(struct _TreeMath* tree, const int node, int* flag);
+            int SimplifyDiv(struct _TreeMath* tree, const int node, int* flag);
+            int SimplifySum(struct _TreeMath* tree, const int node, int* flag);         
+            int SimplifySub(struct _TreeMath* tree, const int node, int* flag);
+        int SimplifyFunction(struct _TreeMath* tree, const int node, int* flag);
+            int SimplifySin(struct _TreeMath* tree, const int node, int* flag);
+            int SimplifyCos(struct _TreeMath* tree, const int node, int* flag);
+            int SimplifyTan(struct _TreeMath* tree, const int node, int* flag);
+
 int DiffPrintTree(struct _TreeMath* tree);
 int _DiffPrintTree(int fd, struct _TreeMath* tree, int node);
     int PrintVariable(const int fd, struct _TreeMath* tree, const int node);
@@ -112,9 +131,4 @@ int _DiffPrintTree(int fd, struct _TreeMath* tree, int node);
 
 //####################//
 
-//####################//
-
-//####################//
-
 #endif
-

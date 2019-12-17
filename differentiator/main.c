@@ -6,32 +6,21 @@
 
 //####################//
 
-
-
-//####################//
-
 int main() {
     //Tree* tree = TreeRead("input/database.txt", Math);
 
     Tree* tree = DiffReadExpression("input/expression.txt");
 
-    printf("res: %d\n", DiffPrintTree(tree));
+    //printf("res: %d\n", DiffPrintTree(tree));
 
-    DiffGetDerivative(tree);
+    if (DiffGetDerivative(tree) == -1) {
+        printf("-1\n");
+        return -1;
+    }
 
     DiffPrintTree(tree);
-
-    //system("pdflatex output/report.tex");
-
-    //TreeSort(tree);
 
     TreeFree(tree);
 
     return 0;
 }
-
-//####################//
-
-
-
-//####################//
