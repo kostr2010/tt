@@ -45,7 +45,7 @@ struct _TreeMath* DiffReadExpression(const char* pathname) {
 
     // dirty hack, needs FIX /////////////
     MathData dataNew = {};              //
-    INSERT(tree->free, Left, 99, 99);   //
+    INSERT(tree->free, Left, 9, 99);   //
 
     if (GetTier4(&s, tree, tree->root) == -1) {
         printf("[DiffReadExpression] ERROR: error while reading expression at pos %ld!\n", s - buf);
@@ -801,8 +801,6 @@ int DiffSimplify(struct _TreeMath* tree) {
             printf("[DiffSimplify] error while simplifying!\n");
             return -1;
         }
-
-        printf(";;%d;;\n", flagModified);
     }
 
     return 0;
@@ -834,6 +832,15 @@ int SimplifyOperator(struct _TreeMath* tree, const int node, int* flag) {
 }
 
 int SimplifyMul(struct _TreeMath* tree, const int node, int* flag) {
+    int parent = tree->nodes[node].parent;
+    int parentBranch = -1;
+    if (tree->nodes[node].parent != 0) {
+        if (tree->nodes[tree->nodes[node].parent].branch[Left] == node)
+            parentBranch = Left;
+        else
+            parentBranch = Right;
+    }
+    
     if ((TYPE(L) == Number && VALUE(L) == 0) || (TYPE(R) == Number && VALUE(R) == 0)) {
         MathData dataNew = {};
         CHANGE(node, Number, 0);
@@ -843,16 +850,6 @@ int SimplifyMul(struct _TreeMath* tree, const int node, int* flag) {
 
         *flag = 1;
     } else if (TYPE(L) == Number && VALUE(L) == 1 * PRECISION) {
-        int parent = tree->nodes[node].parent;
-        int parentBranch = -1;
-
-        if (tree->nodes[node].parent != 0) {
-            if (tree->nodes[tree->nodes[node].parent].branch[Left] == node)
-                parentBranch = Left;
-            else
-                parentBranch = Right;
-        }
-
         Node* rightCpy = TreeCopySubtree(tree, R);
         int rightCount = TreeCountSubtree(tree, R);
 
@@ -864,16 +861,6 @@ int SimplifyMul(struct _TreeMath* tree, const int node, int* flag) {
 
         *flag = 1;
     } else if (TYPE(R) == Number && VALUE(R) == 1 * PRECISION) {
-        int parent = tree->nodes[node].parent;
-        int parentBranch = -1;
-
-        if (tree->nodes[node].parent != 0) {
-            if (tree->nodes[tree->nodes[node].parent].branch[Left] == node)
-                parentBranch = Left;
-            else
-                parentBranch = Right;
-        }
-
         Node* leftCpy = TreeCopySubtree(tree, L);
         int leftCount = TreeCountSubtree(tree, L);
 
@@ -925,17 +912,16 @@ int SimplifyDiv(struct _TreeMath* tree, const int node, int* flag) {
 }
 
 int SimplifySum(struct _TreeMath* tree, const int node, int* flag) {
+    int parent = tree->nodes[node].parent;
+    int parentBranch = -1;
+    if (tree->nodes[node].parent != 0) {
+        if (tree->nodes[tree->nodes[node].parent].branch[Left] == node)
+            parentBranch = Left;
+        else
+            parentBranch = Right;
+    }
+    
     if (TYPE(L) == Number && VALUE(L) == 0) {
-        int parent = tree->nodes[node].parent;
-        int parentBranch = -1;
-
-        if (tree->nodes[node].parent != 0) {
-            if (tree->nodes[tree->nodes[node].parent].branch[Left] == node)
-                parentBranch = Left;
-            else
-                parentBranch = Right;
-        }
-
         Node* rightCpy = TreeCopySubtree(tree, R);
         int rightCount = TreeCountSubtree(tree, R);
 
@@ -947,16 +933,6 @@ int SimplifySum(struct _TreeMath* tree, const int node, int* flag) {
 
         *flag = 1;
     } else if (TYPE(R) == Number && VALUE(R) == 0) {
-        int parent = tree->nodes[node].parent;
-        int parentBranch = -1;
-
-        if (tree->nodes[node].parent != 0) {
-            if (tree->nodes[tree->nodes[node].parent].branch[Left] == node)
-                parentBranch = Left;
-            else
-                parentBranch = Right;
-        }
-
         Node* leftCpy = TreeCopySubtree(tree, L);
         int leftCount = TreeCountSubtree(tree, L);
 
@@ -976,7 +952,6 @@ int SimplifySub(struct _TreeMath* tree, const int node, int* flag) {
     if (TYPE(L) == Number && VALUE(L) == 0) {
         int parent = tree->nodes[node].parent;
         int parentBranch = -1;
-
         if (tree->nodes[node].parent != 0) {
             if (tree->nodes[tree->nodes[node].parent].branch[Left] == node)
                 parentBranch = Left;
@@ -1007,7 +982,6 @@ int SimplifySub(struct _TreeMath* tree, const int node, int* flag) {
 }
 
 int SimplifyFunction(struct _TreeMath* tree, const int node, int* flag) {
-    
     switch (VALUE(node)) {
         case Sin:  if (SimplifySin(tree, node, flag) == -1) {return -1;} break;
         case Cos:  if (SimplifyCos(tree, node, flag) == -1) {return -1;} break;
@@ -1018,14 +992,7 @@ int SimplifyFunction(struct _TreeMath* tree, const int node, int* flag) {
 }
 
 int SimplifySin(struct _TreeMath* tree, const int node, int* flag) {
-    if (TYPE(L) == Number && VALUE(L) == 3.14 * PRECISION) {
-        MathData dataNew = {};
-
-        DELETE(L);
-        CHANGE(node, Number, 0);
-
-        *flag = 1;
-    } else if (TYPE(L) == Number && VALUE(L) == 0) {
+    if ((TYPE(L) == Number && VALUE(L) == 3.14 * PRECISION) || (TYPE(L) == Number && VALUE(L) == 0)) {
         MathData dataNew = {};
 
         DELETE(L);
@@ -1038,14 +1005,7 @@ int SimplifySin(struct _TreeMath* tree, const int node, int* flag) {
 }
 
 int SimplifyCos(struct _TreeMath* tree, const int node, int* flag) {
-    if (TYPE(L) == Number && VALUE(L) == 0) {
-        MathData dataNew = {};
-
-        DELETE(L);
-        CHANGE(node, Number, 1 * PRECISION);
-
-        *flag = 1;
-    } else if (TYPE(L) == Number && VALUE(L) == 3.14 * PRECISION) {
+    if ((TYPE(L) == Number && VALUE(L) == 0) || (TYPE(L) == Number && VALUE(L) == 3.14 * PRECISION)) {
         MathData dataNew = {};
 
         DELETE(L);
@@ -1058,14 +1018,7 @@ int SimplifyCos(struct _TreeMath* tree, const int node, int* flag) {
 }
 
 int SimplifyTan(struct _TreeMath* tree, const int node, int* flag) {
-    if (TYPE(L) == Number && VALUE(L) == 3.14 * PRECISION) {
-        MathData dataNew = {};
-
-        DELETE(L);
-        CHANGE(node, Number, 0);
-
-        *flag = 1;
-    } else if (TYPE(L) == Number && VALUE(L) == 0) {
+    if ((TYPE(L) == Number && VALUE(L) == 3.14 * PRECISION) || (TYPE(L) == Number && VALUE(L) == 0)) {
         MathData dataNew = {};
 
         DELETE(L);
@@ -1140,16 +1093,14 @@ int PrintVariable(const int fd, struct _TreeMath* tree, const int node) {
 }
 
 int PrintNumber(const int fd, struct _TreeMath* tree, const int node) {
-    if (VALUE(node) == 3140) {
+    if (VALUE(node) == 3140)
         dprintf(fd, "\\pi");
-    } else if (VALUE(node) == 2730) {
+    else if (VALUE(node) == 2730)
         dprintf(fd, "e");
-    } else if (VALUE(node) >= 0) { 
+    else if (VALUE(node) >= 0)
         dprintf(fd, "%0.2f", (double)(VALUE(node)) / PRECISION);
-    } else {
+    else
         dprintf(fd, "(%0.2f)", (double)(VALUE(node)) / PRECISION); 
-    }
-    
 
     return 0;
 }
@@ -1167,79 +1118,63 @@ int PrintOperator(const int fd, struct _TreeMath* tree, const int node) {
 }
 
 int PrintSum(const int fd, struct _TreeMath* tree, const int node) {
-    if (_DiffPrintTree(fd, tree, L) == -1) {
+    if (_DiffPrintTree(fd, tree, L) == -1)
         return -1;
-    }
 
     dprintf(fd, " + ");
 
-    if (_DiffPrintTree(fd, tree, R) == -1) {
+    if (_DiffPrintTree(fd, tree, R) == -1)
         return -1;
-    }
 
     return 0;
 }
 
 int PrintSub(const int fd, struct _TreeMath* tree, const int node) {
-    if (_DiffPrintTree(fd, tree, L) == -1) {
+    if (_DiffPrintTree(fd, tree, L) == -1)
         return -1;
-    }
 
     dprintf(fd, " - ");
 
-    if (TYPE(R) == Operator 
-        && (VALUE(R) == Sub 
-        || VALUE(R) == Sum)) {
+    if (TYPE(R) == Operator && (VALUE(R) == Sub || VALUE(R) == Sum)) {
         dprintf(fd, " \\left( ");
 
-        if (_DiffPrintTree(fd, tree, R) == -1) {
+        if (_DiffPrintTree(fd, tree, R) == -1)
             return -1;
-        }
 
         dprintf(fd, " \\right) ");
     } else {
-        if (_DiffPrintTree(fd, tree, R) == -1) {
+        if (_DiffPrintTree(fd, tree, R) == -1)
             return -1;
-        }
     }
 
     return 0;
 }
 
 int PrintMul(const int fd, struct _TreeMath* tree, const int node) {
-    if (TYPE(L) == Operator 
-        && (VALUE(L) == Sub 
-        || VALUE(L) == Sum
-        || VALUE(L) == Div)) {
+    if (TYPE(L) == Operator && (VALUE(L) == Sub || VALUE(L) == Sum || VALUE(L) == Div)) {
         dprintf(fd, " \\left( ");
 
-        if (_DiffPrintTree(fd, tree, L) == -1) {
+        if (_DiffPrintTree(fd, tree, L) == -1)
             return -1;
-        }
 
         dprintf(fd, " \\right) ");
     } else {
-        if (_DiffPrintTree(fd, tree, L) == -1) {
+        if (_DiffPrintTree(fd, tree, L) == -1)
             return -1;
-        }
     }
 
     dprintf(fd, " \\cdot ");
     
-    if (VALUE(R) == Operator 
-        && (VALUE(R) == Sub 
-        || VALUE(R) == Sum)) {
+    if (VALUE(R) == Operator && (VALUE(R) == Sub || VALUE(R) == Sum)) {
         dprintf(fd, " \\left( ");
 
-        if (_DiffPrintTree(fd, tree, R) == -1) {
+        if (_DiffPrintTree(fd, tree, R) == -1)
             return -1;
-        }
 
         dprintf(fd, " \\right) ");
     } else {
-        if (_DiffPrintTree(fd, tree, R) == -1) {
+        if (_DiffPrintTree(fd, tree, R) == -1)
             return -1;
-        }
     }
 
     return 0;
@@ -1248,15 +1183,13 @@ int PrintMul(const int fd, struct _TreeMath* tree, const int node) {
 int PrintDiv(const int fd, struct _TreeMath* tree, const int node) {
     dprintf(fd, "\\dfrac{ ");
 
-    if (_DiffPrintTree(fd, tree, L) == -1) {
+    if (_DiffPrintTree(fd, tree, L) == -1)
         return -1;
-    }    
 
     dprintf(fd, " }{ ");
 
-    if (_DiffPrintTree(fd, tree, R) == -1) {
+    if (_DiffPrintTree(fd, tree, R) == -1)
         return -1;
-    }
 
     dprintf(fd, " } ");
 
@@ -1266,15 +1199,13 @@ int PrintDiv(const int fd, struct _TreeMath* tree, const int node) {
 int PrintPow(const int fd, struct _TreeMath* tree, const int node) {
     dprintf(fd, " \\left( ");    
 
-    if (_DiffPrintTree(fd, tree, L) == -1) {
+    if (_DiffPrintTree(fd, tree, L) == -1)
         return -1;
-    }    
 
     dprintf(fd, " \\right)^{");
 
-    if (_DiffPrintTree(fd, tree, R) == -1) {
+    if (_DiffPrintTree(fd, tree, R) == -1)
         return -1;
-    }
 
     dprintf(fd, " } ");
 
