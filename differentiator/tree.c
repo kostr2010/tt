@@ -43,12 +43,13 @@ int NodeInit(Node* node, const int parent, const int branchL, const int branchR,
         return -1;
     } else {
         node->parent = parent;
-        node->branch[left] = branchL;
-        node->branch[right] = branchR;
+        node->branch[Left] = branchL;
+        node->branch[Right] = branchR;
 
         switch (type) {
-            case Txt: return NodeInitTxtHandler((struct _NodeTxt*)node, (const char*)data); break;
-            case Int: return NodeInitIntHandler((struct _NodeInt*)node, (const int)data); break;
+            case Txt:  return NodeInitTxtHandler((struct _NodeTxt*)node, (const char**)(&data)); break;
+            case Int:  return NodeInitIntHandler((struct _NodeInt*)node, (const int*)(&data)); break;
+            case Math: return NodeInitMathHandler((struct _NodeMath*)node, (const MathData*)(&data)); break;
             default: printf("[NodeInit] invalid type!\n"); return -1; break;
         }
     }
@@ -56,21 +57,28 @@ int NodeInit(Node* node, const int parent, const int branchL, const int branchR,
     return 0;   
 }
 
-int NodeInitTxtHandler(struct _NodeTxt* node, const char* data) {
-    int len = strlen(data);
+int NodeInitTxtHandler(struct _NodeTxt* node, const char** data) {
+    int len = strlen(*data);
 
     if (len >= TEXT_MAX_SZ) {
         printf("[NodeTxtInit] too long");
         return -1;
     }else {
-        memcpy(node->data, data, len);
+        memcpy(node->data, *data, len);
     }
 
     return 0;
 }
 
-int NodeInitIntHandler(struct _NodeInt* node, const int data) {
-    node->data = data;
+int NodeInitIntHandler(struct _NodeInt* node, const int* data) {
+    node->data = *data;
+
+    return 0;
+}
+
+int NodeInitMathHandler(struct _NodeMath* node, const MathData* data) {
+    node->data.type = data->type;
+    node->data.value = data->value;
 
     return 0;
 }
@@ -122,8 +130,9 @@ int TreeInit(Tree* tree, const char* name, int type) {
         tree->free = 1;
 
         switch (type) {
-            case Txt: tree->header.type = Txt; break;
-            case Int: tree->header.type = Int; break;
+            case Txt:  tree->header.type = Txt; break;
+            case Int:  tree->header.type = Int; break;
+            case Math: tree->header.type = Math; break;
             default: printf("[TreeInit] invalid type!"); return -1;
         }
 
@@ -170,8 +179,10 @@ void TreeFree(Tree* tree) {
     if (tree->nodes != NULL)
         free(tree->nodes);
 
+    #ifdef LOG_ON
     if (tree->logfd != -1)
         close(tree->logfd);
+    #endif
 
     free(tree);
 
@@ -180,11 +191,12 @@ void TreeFree(Tree* tree) {
 
 int TreeResize(Tree* tree, const int sizeNew) {
     TREE_VERIFY(tree);
-
+    /*
     if (TreeSort(tree) == -1) {
         printf("[TreeResize] error while sorting tree!\n");
         return -1;
     }
+    */
 
     if (sizeNew < DELTA || sizeNew < tree->cur) {
         printf("[TreeResize] invalid new size %d -> %d\n", tree->max, sizeNew);
@@ -278,13 +290,13 @@ int _TreeSort(Tree* tree, const int node, const int parent, const int branch, in
     
     (*counter) += 1;
     if (*counter > tree->max) {
-        printf("[_TreeTxtSort] index out of range!\n");
+        printf("  [_TreeTxtSort] index out of range!\n");
         return -1;
     }
 
     int this = *counter;
-    int branchL = (tree->nodes[node]).branch[left];
-    int branchR = (tree->nodes[node]).branch[right];
+    int branchL = (tree->nodes[node]).branch[Left];
+    int branchR = (tree->nodes[node]).branch[Right];
 
     buf[this] = tree->nodes[node];
     buf[this].parent = parent;
@@ -292,11 +304,11 @@ int _TreeSort(Tree* tree, const int node, const int parent, const int branch, in
         buf[parent].branch[branch] = this;
 
     if (branchL != 0)
-        if (_TreeSort(tree, branchL, this, left, counter, buf) == -1)
+        if (_TreeSort(tree, branchL, this, Left, counter, buf) == -1)
             return -1;
 
     if (branchR != 0)
-        if (_TreeSort(tree, branchR, this, right, counter, buf) == -1)
+        if (_TreeSort(tree, branchR, this, Right, counter, buf) == -1)
             return -1;
     
     return *counter;
@@ -340,19 +352,20 @@ int TreeFind(Tree* tree, const int node, const data data) {
     
     int res = -1;
     switch (tree->header.type) {
-        case Txt: res = TreeFindTxtHandler((struct _TreeTxt*)tree, node, (const char*)data); break;
-        case Int: res = TreeFindIntHandler((struct _TreeInt*)tree, node, (const int)data); break;
+        case Txt:  res = TreeFindTxtHandler((struct _TreeTxt*)tree, node, (const char**)(&data)); break;
+        case Int:  res = TreeFindIntHandler((struct _TreeInt*)tree, node, (const int*)(&data)); break;
+        case Math: res = TreeFindMathHandler((struct _TreeMath*)tree, node, (const MathData*)(&data)); break;
         default: printf("[NodeInit] invalid type!\n"); return -1;
     }
 
     if (res != -1)
         return res;
 
-    res = TreeFind(tree, (tree->nodes[node]).branch[left], data);
+    res = TreeFind(tree, (tree->nodes[node]).branch[Left], data);
     if (res != -1)
         return res;
 
-    res = TreeFind(tree, (tree->nodes[node]).branch[right], data);
+    res = TreeFind(tree, (tree->nodes[node]).branch[Right], data);
     if (res != -1)
         return res;
 
@@ -361,49 +374,65 @@ int TreeFind(Tree* tree, const int node, const data data) {
     return -1;
 }
 
-int TreeFindTxtHandler(struct _TreeTxt* tree, const int node, const char* data) {
-    if (strcmp(tree->nodes[node].data, data) == 0)
+int TreeFindTxtHandler(struct _TreeTxt* tree, const int node, const char** data) {
+    if (strcmp(tree->nodes[node].data, *data) == 0)
         return node;
     else 
         return -1;
 }
 
-int TreeFindIntHandler(struct _TreeInt* tree, const int node, const int data) {
-    if (tree->nodes[node].data == data)
+int TreeFindIntHandler(struct _TreeInt* tree, const int node, const int* data) {
+    if (tree->nodes[node].data == *data)
         return node;
     else 
         return -1;
 }
 
-int TreeInsertNode(Tree* tree, const int parent, const int branch, data data) {
+int TreeFindMathHandler(struct _TreeMath* tree, const int node, const MathData* data) {
+    if (tree->nodes[node].data.value == data->value && tree->nodes[node].data.type == data->type) {
+        return node;
+    } else {
+        return -1;
+    }
+}
+
+int TreeInsertNode(Tree* tree, const int parent, const int branch, data* data) {
     TREE_VERIFY(tree);
     
     int addrIns = tree->free;
-
+    /*
     if (tree->header.type == Txt) {
-        if (strlen(data) >= TEXT_MAX_SZ - 1) {
+        if (strlen(*data) >= TEXT_MAX_SZ - 1) {
             printf("[TreeInsertNode] too long!\n");
             return -1;
         }
     }
+    */
+    int res = 0;
 
     if (tree->cur == 0) {
         tree->cur++;
 
         switch (tree->header.type) {
-            case Txt: TreeInsertNodeTxtHandler((struct _TreeTxt*)tree, addrIns, (const char*)data); break;
-            case Int: TreeInsertNodeIntHandler((struct _TreeInt*)tree, addrIns, (const int)data); break;
+            case Txt: res = TreeInsertNodeTxtHandler((struct _TreeTxt*)tree, addrIns, (const char**)(data)); break;
+            case Int: res = TreeInsertNodeIntHandler((struct _TreeInt*)tree, addrIns, (const int*)(data)); break;
+            case Math: res = TreeInsertNodeMathHandler((struct _TreeMath*)tree, addrIns, (const MathData*)(data)); break;
             default: printf("[TreeInsertNode] invalid type!\n"); return -1;
         }
 
+        if (res == -1)
+            return -1;
+
         (tree->nodes[addrIns]).parent = 0;
-        (tree->nodes[addrIns]).branch[left] = 0;
-        (tree->nodes[addrIns]).branch[right] = 0;
+        (tree->nodes[addrIns]).branch[Left] = 0;
+        (tree->nodes[addrIns]).branch[Right] = 0;
         tree->root = addrIns;
         tree->free = tree->memmap[addrIns];
 
+        #ifdef LOG_ON
         if (TreeUpdLog(tree, "TreeInsertNode (root added)") != 0)
         tree->err = E_LOG_DEAD;
+        #endif
     } else if ((tree->nodes[parent]).branch[branch] != 0) {
         printf("[TreeInsertNode] branch %d of node %d is already occupied!\n", branch, parent);
         return -1;
@@ -414,27 +443,31 @@ int TreeInsertNode(Tree* tree, const int parent, const int branch, data data) {
         if (tree->cur >= tree->max - 2) {
             if (TreeResize(tree, tree->max * 2) == -1)
                 return -1;
-        } else {
-            (tree->nodes[parent]).branch[branch] = tree->free;
-            (tree->nodes[addrIns]).parent = parent;
-
-            switch (tree->header.type) {
-                case Txt: TreeInsertNodeTxtHandler((struct _TreeTxt*)tree, addrIns, (const char*)data); break;
-                case Int: TreeInsertNodeIntHandler((struct _TreeInt*)tree, addrIns, (const int)data); break;
-                default: printf("[TreeInsertNode] invalid type!\n"); return -1;
-            }
-
-            (tree->nodes[addrIns]).branch[left] = 0;
-            (tree->nodes[addrIns]).branch[right] = 0;
-
-            tree->free = tree->memmap[addrIns];
-            tree->cur++;
-
-            #ifdef LOG_ON
-            if (TreeUpdLog(tree, "TreeInsertNode (inserted)") != 0)
-                tree->err = E_LOG_DEAD;
-            #endif
         }
+
+        (tree->nodes[parent]).branch[branch] = tree->free;
+        (tree->nodes[addrIns]).parent = parent;
+
+        switch (tree->header.type) {
+            case Txt: res = TreeInsertNodeTxtHandler((struct _TreeTxt*)tree, addrIns, (const char**)(data)); break;
+            case Int: res = TreeInsertNodeIntHandler((struct _TreeInt*)tree, addrIns, (const int*)(data)); break;
+            case Math: res = TreeInsertNodeMathHandler((struct _TreeMath*)tree, addrIns, (const MathData*)(data)); break;
+            default: printf("[TreeInsertNode] invalid type!\n"); return -1;
+        }
+
+        if (res == -1)
+            return -1;
+
+        (tree->nodes[addrIns]).branch[Left] = 0;
+        (tree->nodes[addrIns]).branch[Right] = 0;
+
+        tree->free = tree->memmap[addrIns];
+        tree->cur++;
+
+        #ifdef LOG_ON
+        if (TreeUpdLog(tree, "TreeInsertNode (inserted)") != 0)
+            tree->err = E_LOG_DEAD;
+        #endif 
     }
 
     #ifdef SEC_ON
@@ -446,18 +479,32 @@ int TreeInsertNode(Tree* tree, const int parent, const int branch, data data) {
     return addrIns;
 }
 
-int TreeInsertNodeTxtHandler(struct _TreeTxt* tree, const int node, const char* data) {
+int TreeInsertNodeTxtHandler(struct _TreeTxt* tree, const int node, const char** data) {
+    if (strlen(*data) >= TEXT_MAX_SZ - 1) {
+        printf("[TreeInsertNode] too long!\n");
+        return -1;
+    }
+    
     memset((tree->nodes[node]).data, '\0', TEXT_MAX_SZ);
-    memcpy((tree->nodes[node]).data, data, strlen(data));
+    memcpy((tree->nodes[node]).data, *data, strlen(*data));
 
     tree->header.type = Txt;
 
     return 0;
 }
 
-int TreeInsertNodeIntHandler(struct _TreeInt* tree, const int node, const int data) {
-    (tree->nodes[node]).data = data;
+int TreeInsertNodeIntHandler(struct _TreeInt* tree, const int node, const int* data) {
+    (tree->nodes[node]).data = *data;
     tree->header.type = Int;
+
+    return 0;
+}
+
+int TreeInsertNodeMathHandler(struct _TreeMath* tree, const int node, const MathData* data) {
+    (tree->nodes[node]).data.type = data->type;
+    (tree->nodes[node]).data.value = data->value;
+
+    tree->header.type = Math;
 
     return 0;
 }
@@ -467,6 +514,8 @@ int TreeCountSubtree(Tree* tree, const int node) {
 
     int counter = 0;
 
+    //printf("node: %d\n", node);
+
     if (_TreeCountSubtree(tree, node, &counter) == -1)
         return -1;
 
@@ -475,15 +524,19 @@ int TreeCountSubtree(Tree* tree, const int node) {
     return counter;
 }
 
-int _TreeCountSubtree(Tree* tree, const int node, int* counter) {
+int _TreeCountSubtree(Tree* tree, const int node, int* counter) {    
     if (*counter > tree->cur) {
         printf("[TreeCountSubtree] counter out of range!\n");
         tree->err = E_SEQ_CORRUPTED;
         return -1;
     }
 
-    int branchL = (tree->nodes[node]).branch[left];
-    int branchR = (tree->nodes[node]).branch[right];
+    (*counter)++;
+
+    int branchL = (tree->nodes[node]).branch[Left];
+    int branchR = (tree->nodes[node]).branch[Right];
+
+    //printf("branchL = %d, branchR = %d\n", branchL, branchR);
 
     if (branchL != 0)
         if (_TreeCountSubtree(tree, branchL, counter) == -1)
@@ -493,25 +546,27 @@ int _TreeCountSubtree(Tree* tree, const int node, int* counter) {
         if (_TreeCountSubtree(tree, branchR, counter) == -1)
             return -1;
 
-    *counter++;
+    //printf("counter: %d\n", *counter);
 
     return 0;
 }
 
-int TreeCopySubtree(Tree* src, Node* dst, const int node) {
+Node* TreeCopySubtree(Tree* src, const int node) {
     TREE_VERIFY(src);
 
     int subtreeSz = TreeCountSubtree(src, node);
     if (subtreeSz == -1) {
         printf("[TreeCopySubtree] can't count elements to copy subtree!\n");
-        return -1;
+        return NULL;
     }
 
-    dst = calloc(subtreeSz, sizeof(Node));
+    //printf("size: %d\n", subtreeSz);
+
+    Node* dst = calloc(subtreeSz, sizeof(Node));
     int pos = 0;
 
     if (_TreeCopySubtree(src, dst, node, &pos) == -1)
-        return -1;
+        return NULL;
 
     #ifdef LOG_ON
     if (TreeUpdLog(src, "TreeCopySubTree") != 0)
@@ -520,15 +575,17 @@ int TreeCopySubtree(Tree* src, Node* dst, const int node) {
 
     TREE_VERIFY(src);
 
-    return subtreeSz;
+    return dst;
 }
 
 int _TreeCopySubtree(Tree* src, Node* dst, const int node, int* pos) {
-    int branchL = (src->nodes[node]).branch[left];
-    int branchR = (src->nodes[node]).branch[right];
+    int branchL = (src->nodes[node]).branch[Left];
+    int branchR = (src->nodes[node]).branch[Right];
 
     dst[*pos] = src->nodes[node];
-    *pos++;
+    (*pos)++;
+
+    //printf("  [_TreeCopySubTree] inserted node %d of original tree at pos %d\n", node, *pos - 1);
 
     if (branchL != 0)
         if (_TreeCopySubtree(src, dst, branchL, pos) == -1)
@@ -543,11 +600,26 @@ int _TreeCopySubtree(Tree* src, Node* dst, const int node, int* pos) {
 
 int TreeDeleteNode(Tree* tree, const int node) {
     TREE_VERIFY(tree);
+
+    if (node == 0) {
+        printf("[TreeDeleteNode] WARNING: deleting empty node!\n");
+
+        return 0;
+    }
     
     if (_TreeDeleteNode(tree, node) == -1) {
         printf("[TreeDeleteNode] can't delete node and it's subtree!\n");
         return -1;
+    } 
+
+    /*
+    while (tree->cur < tree->max - DELTA && tree->max / 2 >= DELTA) {
+        if (TreeResize(tree, tree->max / 2) == -1) {
+            printf("[TreeDeleteNode] error while shrinking during delete!\n");
+            return -1;
+        }
     }
+    */
 
     #ifdef LOG_ON
     if (TreeUpdLog(tree, "TreeDeleteNode") != 0)
@@ -570,15 +642,12 @@ int _TreeDeleteNode(Tree* tree, const int node) {
     } else if (tree->cur < 0) {
         printf("[TreeDeleteNode] tree->cur went negative while deleting!\n");
         return -1;
-    } else if (tree->cur < tree->max - DELTA && tree->max / 2 >= DELTA) {
-        if (TreeResize(tree, tree->max / 2) == -1) {
-            printf("[TreeDeleteNode] error while shrinking during delete!\n");
-            return -1;
-        }
     } else {
         int parent = (tree->nodes[node]).parent;
-        int branchL = (tree->nodes[node]).branch[left];
-        int branchR = (tree->nodes[node]).branch[right];
+        int branchL = (tree->nodes[node]).branch[Left];
+        int branchR = (tree->nodes[node]).branch[Right];
+
+        //printf("%d <%d> (%d %d)\n", node, parent, branchL, branchR);
 
         if (branchL != 0)
             if (_TreeDeleteNode(tree, branchL) == -1)
@@ -591,10 +660,10 @@ int _TreeDeleteNode(Tree* tree, const int node) {
         if ((tree->nodes[node]).parent != 0 || node == tree->root)
             tree->cur--;
 
-        if ((tree->nodes[parent]).branch[left] == node)
-            (tree->nodes[parent]).branch[left] = 0;
-        else if ((tree->nodes[parent]).branch[right] == node)
-            (tree->nodes[parent]).branch[right] = 0;
+        if ((tree->nodes[parent]).branch[Left] == node)
+            (tree->nodes[parent]).branch[Left] = 0;
+        else if ((tree->nodes[parent]).branch[Right] == node)
+            (tree->nodes[parent]).branch[Right] = 0;
         
         (tree->nodes[node]).parent = 0;
 
@@ -608,8 +677,8 @@ int _TreeDeleteNode(Tree* tree, const int node) {
 int TreeChangeNode(Tree* tree, const int node, int* parentNew, int* branchLNew, int* branchRNew, data* dataNew) {
     TREE_VERIFY(tree);
 
-    int branchL = (tree->nodes[node]).branch[left];
-    int branchR = (tree->nodes[node]).branch[right];
+    int branchL = (tree->nodes[node]).branch[Left];
+    int branchR = (tree->nodes[node]).branch[Right];
 
     if (parentNew != NULL) 
         (tree->nodes[node]).parent = *parentNew;
@@ -626,8 +695,9 @@ int TreeChangeNode(Tree* tree, const int node, int* parentNew, int* branchLNew, 
 
     int res = -1;
     switch (tree->header.type) {
-        case Txt: res = TreeChangeNodeTxtHandler((struct _TreeTxt*)tree, node, (char**)dataNew); break;
-        case Int: res = TreeChangeNodeIntHandler((struct _TreeInt*)tree, node, (int*)dataNew); break;
+        case Txt:  res = TreeChangeNodeTxtHandler((struct _TreeTxt*)tree, node, (char**)dataNew); break;
+        case Int:  res = TreeChangeNodeIntHandler((struct _TreeInt*)tree, node, (int*)dataNew); break;
+        case Math: res = TreeChangeNodeMathHandler((struct _TreeMath*)tree, node, (MathData*)dataNew); break;
         default: printf("[NodeInsertNode] invalid type!\n"); return -1;
     }
 
@@ -665,6 +735,89 @@ int TreeChangeNodeIntHandler(struct _TreeInt* tree, const int node, int* dataNew
 
     return 0;
 }
+
+int TreeChangeNodeMathHandler(struct _TreeMath* tree, const int node, MathData* dataNew) {
+    if (dataNew != NULL) {
+        (tree->nodes[node]).data.value = dataNew->value;
+        (tree->nodes[node]).data.type = dataNew->type;
+    }
+
+    return 0;
+}
+
+int TreeGlueSubtree(Tree* tree, Node* subtree, int node, int branch, int nodesCount) {
+    TREE_VERIFY(tree);
+
+    //printf("nodesCount: %d\n", nodesCount);
+
+    if (tree->nodes[node].branch[branch] != 0) {
+        printf("[TreeGlueSubtree] branch is not empty!\n");
+        return -1;
+    } else if (tree->nodes[node].parent == 0 && node != tree->root) {
+        printf("[TreeGlueSubtree] node: %d, root: %d", node , tree->root);
+        printf("[TreeGlueSubtree] invalid node to glue to!\n");
+        return -1;
+    } 
+    /*
+    while (nodesCount >= tree->max - tree->cur) {
+        TreeResize(tree, tree->max * 2);
+    }
+    */
+    int index = 0;
+
+    if (_TreeGlueSubtree(tree, subtree, &index, nodesCount, node, branch)) {
+        printf("[TreeGlueSubtree] executed with errors!\n");
+        TreeDeleteNode(tree, tree->nodes[node].branch[branch]);
+        return -1;
+    }
+
+    #ifdef LOG_ON
+    TreeUpdLog(tree, "TreeGlueSubtree");
+    #endif
+
+    #ifdef SEC_ON
+    tree->hash = TreeGetHash(tree);
+    #endif
+
+    TREE_VERIFY(tree);
+
+    return 0;
+}
+
+int _TreeGlueSubtree(Tree* tree, Node* subtree, int* index, int nodesCount, int node, int branch) {    
+    if (TreeInsertNode(tree, node, branch, &(subtree[*index].data)) == -1) {
+        printf("  [_TreeGlueSubtree] can't insert %d node's %d branch!\n", node, branch);
+        return -1;
+    }
+
+    int this = tree->nodes[node].branch[branch];
+    
+    //printf("[_TreeGlueSubtree] glued index %d to addr %d \n"
+    //       "                   as %d branch of %d node of original tree\n", *index, this, branch,  node);
+    
+    int localAddr = *index;
+
+    if (*index < nodesCount && subtree[localAddr].branch[Left] != 0) {
+        (*index)++;
+
+        if (_TreeGlueSubtree(tree, subtree, index, nodesCount, this, Left) == -1)
+            return -1;
+    } else {
+        //printf("index: %d count: %d subtree[localAddr].branch[Left] == %d\n", *index, nodesCount, subtree[localAddr].branch[Left]);
+    }
+
+    if (*index < nodesCount && subtree[localAddr].branch[Right] != 0) {
+        (*index)++;
+
+        if (_TreeGlueSubtree(tree, subtree, index, nodesCount, this, Right) == -1)
+            return -1;
+    } else {
+        //printf("index: %d count: %d subtree[localAddr].branch[Left] == %d\n", *index, nodesCount, subtree[localAddr].branch[Left]);
+    }
+
+    return 0;
+}
+
 
 Tree* TreeRead(const char* pathname, int type) {
     Tree* tree = TreeAlloc();
@@ -709,7 +862,7 @@ int _TreeRead(Tree* tree, char** s) {
     int res = TreeGetGr(s, tree, 0, 0);
 
     if (res == -1) {
-        printf("[_TreeRead] can't read!\n");
+        printf("  [_TreeRead] can't read!\n");
         return -1;
     }
 
@@ -724,8 +877,9 @@ int TreeGetGr(char** s, Tree* tree, const int parent, const int branch) {
     GetSpace(s);
 
     switch (tree->header.type) {
-        case Txt: val = TreeTxtGetNode(s, (struct _TreeTxt*)tree, parent, branch); break;
-        case Int: val = TreeIntGetNode(s, (struct _TreeInt*)tree, parent, branch); break;
+        case Txt:  val = TreeTxtGetNode(s, (struct _TreeTxt*)tree, parent, branch); break;
+        case Int:  val = TreeIntGetNode(s, (struct _TreeInt*)tree, parent, branch); break;
+        case Math: val = TreeMathGetNode(s, (struct _TreeMath*)tree, parent, branch); break;
         default: printf("[NodeInsertNode] invalid type!\n"); return -1;
     }
 
@@ -749,7 +903,7 @@ int TreeTxtGetNode(char** s, struct _TreeTxt* tree, const int parent, const int 
     
     int node = 0;
 
-    int len = GetStr(s);
+    int len = GetString(s);
 
     if (len == -1) {
         if (**s != '#') {
@@ -762,7 +916,7 @@ int TreeTxtGetNode(char** s, struct _TreeTxt* tree, const int parent, const int 
         char* str = calloc(len, sizeof(char));
         memcpy(str, *s - len, len - 1);
 
-        node = TreeInsertNode(tree, parent, branch, str);
+        node = TreeInsertNode(tree, parent, branch, &str);
         if (node == -1) {
             printf("[TreeTxtGetNode] can't insert!\n");
             return -1;
@@ -778,7 +932,7 @@ int TreeTxtGetNode(char** s, struct _TreeTxt* tree, const int parent, const int 
 
         GetSpace(s);
 
-        if (TreeTxtGetNode(s, tree, node, left) == -1)
+        if (TreeTxtGetNode(s, tree, node, Left) == -1)
             return -1;
 
         GetSpace(s);
@@ -790,7 +944,7 @@ int TreeTxtGetNode(char** s, struct _TreeTxt* tree, const int parent, const int 
         
         GetSpace(s);
 
-        if (TreeTxtGetNode(s, tree, node, right) == -1)
+        if (TreeTxtGetNode(s, tree, node, Right) == -1)
             return -1;
 
         GetSpace(s);
@@ -813,7 +967,7 @@ int TreeIntGetNode(char** s, struct _TreeInt* tree, const int parent, const int 
     int val = 0;
     int node = 0;
 
-    val = GetNum(s);
+    val = GetNumber(s);
 
     if (val == -1) {
         if (**s != '#') {
@@ -823,7 +977,7 @@ int TreeIntGetNode(char** s, struct _TreeInt* tree, const int parent, const int 
             return 0;
         }
     } else {
-        node = TreeInsertNode((Tree*)tree, parent, branch, val);
+        node = TreeInsertNode((Tree*)tree, parent, branch, &val);
         if (node == -1) {
             printf("[GetNode] can't insert!\n");
             return -1;
@@ -837,7 +991,7 @@ int TreeIntGetNode(char** s, struct _TreeInt* tree, const int parent, const int 
 
         GetSpace(s);
 
-        if (TreeIntGetNode(s, tree, node, left) == -1)
+        if (TreeIntGetNode(s, tree, node, Left) == -1)
             return -1;
 
         GetSpace(s);
@@ -849,7 +1003,7 @@ int TreeIntGetNode(char** s, struct _TreeInt* tree, const int parent, const int 
         
         GetSpace(s);
 
-        if (TreeIntGetNode(s, tree, node, right) == -1)
+        if (TreeIntGetNode(s, tree, node, Right) == -1)
             return -1;
 
         GetSpace(s);
@@ -865,7 +1019,84 @@ int TreeIntGetNode(char** s, struct _TreeInt* tree, const int parent, const int 
     return 0;
 }
 
-int GetStr(char** s) {
+int TreeMathGetNode(char** s, struct _TreeMath* tree, const int parent, const int branch) {
+    MathData val = {};
+    int node = 0;
+
+    if (**s != '[')
+        return -1;
+    else 
+        (*s)++;
+
+    val.type = GetNumber(s);
+
+    GetSpace(s);
+
+    if (**s != ',')
+        return -1;
+    else 
+        (*s)++;
+
+    GetSpace(s);
+
+    val.value = GetNumber(s);
+
+    if (**s != ']')
+        return -1;
+    else 
+        (*s)++;
+
+    if (val.type == -1 || val.type == -1) {
+        if (**s != '#') {
+            return -1;
+        } else {
+            (*s)++;
+            return 0;
+        }
+    } else {
+        node = TreeInsertNode((Tree*)tree, parent, branch, &val);
+        if (node == -1) {
+            printf("[GetNode] can't insert!\n");
+            return -1;
+        } else {
+            //printf("[GetNode] inserted %d at pos, parent: %d, branch: %d\n", val, parent, branch);
+        }
+    }
+
+    while (**s == '(') {
+        (*s)++;
+
+        GetSpace(s);
+
+        if (TreeMathGetNode(s, tree, node, Left) == -1)
+            return -1;
+
+        GetSpace(s);
+
+        if (**s != ',')
+            return -1;
+        else 
+            (*s)++;
+        
+        GetSpace(s);
+
+        if (TreeMathGetNode(s, tree, node, Right) == -1)
+            return -1;
+
+        GetSpace(s);
+        
+        if (**s != ')')
+            return -1;
+        else
+            (*s)++;
+    }
+
+    GetSpace(s);
+
+    return 0;
+}
+
+int GetString(char** s) {
     char* str = *s;
 
     if (**s == '\"') {
@@ -876,7 +1107,7 @@ int GetStr(char** s) {
         }
 
         if (**s != '\"') {
-            printf("[TreeTxtGetStr] no closing quote detected!\n");
+            printf("[TreeTxtGetString] no closing quote detected!\n");
             return -1;
         } else {
             (*s)++;
@@ -895,8 +1126,8 @@ int GetSpace(char** s) {
     return 0;
 }
 
-int GetNum(char** s) {
-    //printf("[GetNum] <%c>\n", **s);
+int GetNumber(char** s) {
+    //printf("[GetNumber] <%c>\n", **s);
 
     int val = 0;
 
@@ -904,7 +1135,7 @@ int GetNum(char** s) {
         val = val * 10 + (**s - '0');
 		(*s)++;
     } else {
-        printf("[GetNum] no number was read!\n");
+        printf("[GetNumber] no number was read!\n");
         return -1;
     }
 
@@ -944,24 +1175,25 @@ int TreeWrite(Tree* tree, const char* pathname) {
 
 int _TreeWrite(Tree* tree, int node, int fd) {
     switch (tree->header.type) {
-        case Txt: dprintf(fd, "\"%s\"", tree->nodes[node].data); break;
-        case Int: dprintf(fd, "%d", tree->nodes[node].data); break;
+        case Txt:  _TreeWriteTxtHandler((struct _TreeTxt*)tree, node, fd); break;
+        case Int:  _TreeWriteIntHandler((struct _TreeInt*)tree, node, fd); break;
+        case Math: _TreeWriteMathHandler((struct _TreeMath*)tree, node, fd); break;
         default: printf("[NodeInsertNode] invalid type!\n"); return -1;
     }
 
-    if (tree->nodes[node].branch[left] != 0 || tree->nodes[node].branch[right] != 0) {
+    if (tree->nodes[node].branch[Left] != 0 || tree->nodes[node].branch[Right] != 0) {
         dprintf(fd, "(");
 
-        if (tree->nodes[node].branch[left] != 0) {
-            _TreeWrite(tree, tree->nodes[node].branch[left], fd);
+        if (tree->nodes[node].branch[Left] != 0) {
+            _TreeWrite(tree, tree->nodes[node].branch[Left], fd);
         } else {
             dprintf(fd, "#");
         }
 
         dprintf(fd, ", ");
 
-        if (tree->nodes[node].branch[right] != 0) {
-            _TreeWrite(tree, tree->nodes[node].branch[right], fd);
+        if (tree->nodes[node].branch[Right] != 0) {
+            _TreeWrite(tree, tree->nodes[node].branch[Right], fd);
         } else {
             dprintf(fd, "#");
         }
@@ -972,6 +1204,24 @@ int _TreeWrite(Tree* tree, int node, int fd) {
     return 0;
 }
 
+void _TreeWriteTxtHandler(struct _TreeTxt* tree, const int node, const int fd) {
+    dprintf(fd, "\"%s\"", tree->nodes[node].data);
+
+    return;
+}
+
+void _TreeWriteIntHandler(struct _TreeInt* tree, const int node, const int fd) {
+    dprintf(fd, "%d", tree->nodes[node].data);
+
+    return;
+}
+
+void _TreeWriteMathHandler(struct _TreeMath* tree, const int node, const int fd) {
+    dprintf(fd, "[%d, %d]", tree->nodes[node].data.type, tree->nodes[node].data.value);
+
+    return;
+}
+
 
 int TreeVerify(Tree* tree) {
     if (tree == NULL) {
@@ -979,10 +1229,12 @@ int TreeVerify(Tree* tree) {
         return -1;
     }
 
+    #ifdef SEC_ON
     if (tree->hash != TreeGetHash(tree)) {
         tree->err = E_HASH_CORRUPTED;
         return tree->err;
     }
+    #endif
 
     if (tree->cur > tree->max || tree->cur < 0 || tree->max < 0) {
         tree->err = E_SIZE_INVALID;
@@ -1016,12 +1268,11 @@ void TreeDump(Tree* tree, const char* name) {
 
         if (tree->nodes != NULL) {
             switch (tree->header.type) {
-                case Txt: TreeDumpTxtHandler((struct _TreeTxt*)tree, dumpFd); break;
-                case Int: break;
+                case Txt:  TreeUpdLogTxtHandler((struct _TreeTxt*)tree, dumpFd); break;
+                case Int:  TreeUpdLogIntHandler((struct _TreeInt*)tree, dumpFd); break;
+                case Math: TreeUpdLogMathHandler((struct _TreeMath*)tree, dumpFd); break;
                 default: printf("[NodeDump] invalid type!\n"); return;
             }
-            for (int i = 0; i < tree->max; i++)
-                dprintf(dumpFd, "  [%3d] (%s [%3d, %3d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[left], tree->nodes[i].branch[right], tree->nodes[i].parent);
         }
     }
 
@@ -1030,14 +1281,21 @@ void TreeDump(Tree* tree, const char* name) {
 
 int TreeDumpTxtHandler(struct _TreeTxt* tree, const int dumpFd) {
     for (int i = 0; i < tree->max; i++)
-        dprintf(dumpFd, "  [%3d] (%s [%3d, %3d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[left], tree->nodes[i].branch[right], tree->nodes[i].parent);
+        dprintf(dumpFd, "  [%3d] (%s [%3d, %3d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[Left], tree->nodes[i].branch[Right], tree->nodes[i].parent);
 
     return 0;
 }
 
 int TreeDumpIntHandler(struct _TreeInt* tree, const int dumpFd) {
     for (int i = 0; i < tree->max; i++)
-        dprintf(dumpFd, "  [%3d] (%3d [%3d, %3d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[left], tree->nodes[i].branch[right], tree->nodes[i].parent);
+        dprintf(dumpFd, "  [%3d] (%3d [%3d, %3d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[Left], tree->nodes[i].branch[Right], tree->nodes[i].parent);
+    
+    return 0;
+}
+
+int TreeDumpMathHandler(struct _TreeMath* tree, const int dumpFd) {
+    for (int i = 0; i < tree->max; i++)
+        dprintf(dumpFd, "  [%3d] (type: %d value: %3d [%3d, %3d] <%3d>)\n", i, tree->nodes[i].data.type, tree->nodes[i].data.value, tree->nodes[i].branch[Left], tree->nodes[i].branch[Right], tree->nodes[i].parent);
     
     return 0;
 }
@@ -1060,6 +1318,7 @@ int TreeUpdLog(Tree* tree, const char* func) {
     char* timeStamp = GetTimestamp();
     int res = 0;
 
+    #ifdef SEC_ON
     res = dprintf(tree->logfd, "%s\n"
                                "passed through function [[%s]]\n"
                                "  hash: %ld\n"
@@ -1069,14 +1328,25 @@ int TreeUpdLog(Tree* tree, const char* func) {
                                "  root address: %d\n"
                                "  error: %d %s\n",
                                timeStamp, func, tree->hash, tree->max, tree->cur, tree->free, tree->root, tree->err, TreeErrsDesc[tree->err]);
+    #else 
+    res = dprintf(tree->logfd, "%s\n"
+                               "passed through function [[%s]]\n"
+                               "  tree capacity: %d\n"
+                               "  tree size: %d\n"
+                               "  first free element's physical address: %d\n"
+                               "  root address: %d\n"
+                               "  error: %d %s\n",
+                               timeStamp, func, tree->max, tree->cur, tree->free, tree->root, tree->err, TreeErrsDesc[tree->err]);
+    #endif
     free(timeStamp);
 
     if (res == 0)
         return -1;
 
     switch (tree->header.type) {
-        case Txt: TreeUpdLogTxtHandler((struct _TreeTxt*)tree, tree->logfd); break;
-        case Int: TreeUpdLogIntHandler((struct _TreeInt*)tree, tree->logfd); break;
+        case Txt:  TreeUpdLogTxtHandler((struct _TreeTxt*)tree, tree->logfd); break;
+        case Int:  TreeUpdLogIntHandler((struct _TreeInt*)tree, tree->logfd); break;
+        case Math: TreeUpdLogMathHandler((struct _TreeMath*)tree, tree->logfd); break; 
         default: printf("[NodeInsertNode] invalid type!\n"); return -1;
     }
 
@@ -1107,29 +1377,43 @@ int TreeUpdLog(Tree* tree, const char* func) {
     return 0;
 }
 
-int TreeUpdLogTxtHandler(struct _TreeTxt* tree, int fd) {
+int TreeUpdLogTxtHandler(struct _TreeTxt* tree, const int fd) {
     int res = 0;
 
     res = dprintf(tree->logfd, "  |  &|                              val| &L| &R|  &par|\n");
     for (int i = 0; i < tree->max; i++) {
         if (((tree->nodes[i]).parent == 0 && i != tree->root) || tree->cur == 0)
-            res = dprintf(tree->logfd, "  [%2d ] (%30s [ %2d, %2d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[left], tree->nodes[i].branch[right], tree->nodes[i].parent);
+            res = dprintf(tree->logfd, "  [%2d ] (%30s [ %2d, %2d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[Left], tree->nodes[i].branch[Right], tree->nodes[i].parent);
         else 
-            res = dprintf(tree->logfd, "  [%2d*] (%30s [ %2d, %2d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[left], tree->nodes[i].branch[right], tree->nodes[i].parent);
+            res = dprintf(tree->logfd, "  [%2d*] (%30s [ %2d, %2d] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[i].branch[Left], tree->nodes[i].branch[Right], tree->nodes[i].parent);
     }
 
     return res;
 }
 
-int TreeUpdLogIntHandler(struct _TreeInt* tree, int fd) {
+int TreeUpdLogIntHandler(struct _TreeInt* tree, const int fd) {
     int res = 0;
 
     res = dprintf(tree->logfd, "  | &|   val| valL| &L| valR| &R|  &par|\n");
     for (int i = 0; i < tree->max; i++) {
         if (((tree->nodes[i]).parent == 0 && i != tree->root) || tree->cur == 0)
-            res = dprintf(tree->logfd, "  [%2d ] (%3d [%3d <%2d>, %3d <%2d>] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[tree->nodes[i].branch[left]].data, tree->nodes[i].branch[left], tree->nodes[tree->nodes[i].branch[right]].data, tree->nodes[i].branch[right], tree->nodes[i].parent);
+            res = dprintf(tree->logfd, "  [%2d ] (%3d [%3d <%2d>, %3d <%2d>] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[tree->nodes[i].branch[Left]].data, tree->nodes[i].branch[Left], tree->nodes[tree->nodes[i].branch[Right]].data, tree->nodes[i].branch[Right], tree->nodes[i].parent);
         else 
-            res = dprintf(tree->logfd, "  [%2d*] (%3d [%3d <%2d>, %3d <%2d>] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[tree->nodes[i].branch[left]].data, tree->nodes[i].branch[left], tree->nodes[tree->nodes[i].branch[right]].data, tree->nodes[i].branch[right], tree->nodes[i].parent);
+            res = dprintf(tree->logfd, "  [%2d*] (%3d [%3d <%2d>, %3d <%2d>] <%3d>)\n", i, tree->nodes[i].data, tree->nodes[tree->nodes[i].branch[Left]].data, tree->nodes[i].branch[Left], tree->nodes[tree->nodes[i].branch[Right]].data, tree->nodes[i].branch[Right], tree->nodes[i].parent);
+    }
+
+    return res;
+}
+
+int TreeUpdLogMathHandler(struct _TreeMath* tree, const int fd) {
+    int res = 0;
+
+    res = dprintf(tree->logfd, "  | &|   val|               &L|  &R|  &par|\n");
+    for (int i = 0; i < tree->max; i++) {
+        if (((tree->nodes[i]).parent == 0 && i != tree->root) || tree->cur == 0)
+            res = dprintf(tree->logfd, "  [%2d ] (type: %d value: %6d [%3d, %3d] <%3d>)\n", i, tree->nodes[i].data.type, tree->nodes[i].data.value, tree->nodes[i].branch[Left], tree->nodes[i].branch[Right], tree->nodes[i].parent);
+        else 
+            res = dprintf(tree->logfd, "  [%2d*] (type: %d value: %6d [%3d, %3d] <%3d>)\n", i, tree->nodes[i].data.type, tree->nodes[i].data.value, tree->nodes[i].branch[Left], tree->nodes[i].branch[Right], tree->nodes[i].parent);
     }
 
     return res;
